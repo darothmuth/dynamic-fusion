@@ -1,0 +1,146 @@
+/* Base layout */
+html, body {
+  height: 100%;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Segoe UI', sans-serif;
+  background: #f5f7fa;
+  color: #333;
+}
+.section {
+  flex: 1;
+  padding: 2rem;
+  max-width: 1000px;
+  margin: auto;
+}
+.card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+input, select {
+  width: 100%;
+  padding: 0.6rem;
+  margin: 0.5rem 0 1rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+button, .btn-solid {
+  background-color: #2e7d32;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+button:hover, .btn-solid:hover { background-color: #1b5e20; }
+.error-message { color: red; text-align: center; margin-top: 1rem; }
+
+/* Navbar */
+.navbar {
+  display: flex; justify-content: space-between; align-items: center;
+  background: white; padding: 10px;
+}
+.navbar img { height: 50px; width: auto; }
+.logo { font-size: 1.2rem; font-weight: bold; color: #2e7d32; }
+.nav-overflow { position: relative; }
+.overflow-btn {
+  background: transparent; border: none; font-size: 1.6rem;
+  cursor: pointer; color: #2e7d32; padding: 0.25rem 0.5rem;
+}
+.overflow-menu {
+  position: absolute; right: 0; top: 110%; background: white;
+  border: 1px solid #ccc; border-radius: 8px;
+  box-shadow: 0 8px 16px rgba(42, 155, 32, 0.1);
+  display: none; flex-direction: column; min-width: 180px; z-index: 1000;
+}
+.overflow-menu.is-open { display: flex; }
+.nav-btn {
+  background: none; border: none; padding: 0.6rem 1rem; text-align: left;
+  cursor: pointer; font-size: 1rem; color: #2e7d32;
+}
+.nav-btn:hover { background: rgba(46, 125, 50, 0.1); }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+th { background-color: #f0f0f0; }
+.reject-btn {
+  background-color: #dc3545; color: #ffffff; border: none; border-radius: 6px;
+  padding: 0.4rem 0.8rem; font-size: 0.9rem; cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+.reject-btn:hover { background-color: #c82333; }
+.delete-btn {
+  background-color: #ff5722; color: #ffffff; border: none; border-radius: 6px;
+  padding: 0.4rem 0.8rem; font-size: 0.9rem; cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+.delete-btn:hover { background-color: #e64a19; }
+
+/* Welcome screen */
+.welcome-screen {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: #f5f7fa; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; z-index: 2000;
+  overflow: hidden; opacity: 1;
+}
+#logoBig {
+  width: 350px; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -150%) scale(0.5);
+  opacity: 0; z-index: 10;
+}
+.logo-fly { animation: flyIn 1.5s ease forwards; }
+@keyframes flyIn {
+  0% { transform: translate(-50%, -150%) scale(0.5); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+#companyName, #welcomeText {
+  color: #2e7d32; font-family: serif; white-space: nowrap;
+  overflow: hidden; border-right: 2px solid transparent;
+  opacity: 1; max-width: 90vw; text-align: center;
+}
+.typing {
+  border-right-color: #2e7d32;
+  animation: typing 2.8s steps(30, end), blink 0.8s step-end infinite;
+}
+@keyframes typing { from { width: 0 } to { width: 100% } }
+@keyframes blink { 50% { border-color: transparent } }
+.welcome-screen.fade-out {
+  opacity: 0; transition: opacity 1s ease; pointer-events: none;
+}
+.is-hidden { display: none !important; }
+
+/* Footer sticky */
+.site-footer {
+  background: #c8e6c9; color: #2e7d32; text-align: center;
+  padding: 1rem; border-top: 1px solid #a5d6a7; width: 100%;
+  margin-top: auto;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .navbar img { height: 40px; }
+  .logo { font-size: 1rem; }
+  .overflow-menu { min-width: 100%; }
+  table { font-size: 0.8rem; display: block; overflow-x: auto; }
+  .card { padding: 1rem; }
+}
+#companyName, #welcomeText {
+  position: relative;
+  z-index: 20; /* higher than logoBig */
+  color: #2e7d32;
+  font-family: serif;
+  text-align: center;
+}
+/* Logo fade-out effect */
+.logo-hide {
+  opacity: 0;
+  visibility: hidden;   /* ensures it disappears and doesn't block text */
+  transition: opacity 1s ease;
+}

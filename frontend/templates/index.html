@@ -1,0 +1,150 @@
+<!-- Paste this into frontend/templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DYNAMIC FUSION - Reimbursement & Payment</title>
+  <meta name="description" content="Staff reimbursement & payment portal for DYNAMIC FUSION CO., LTD">
+  <link rel="icon" href="/static/favicon.jpg" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <!-- Welcome screen -->
+  <div id="welcome-screen" class="welcome-screen">
+    <img id="logoBig" src="/static/logo-color.png" alt="Logo">
+    <h1 id="companyName"></h1>
+    <h2 id="welcomeText"></h2>
+  </div>
+
+  <!-- Navbar -->
+  <header class="site-header">
+    <nav class="navbar">
+      <img src="/static/favicon.jpg" alt="Logo Small">
+      <div class="logo">DYNAMIC FUSION CO., LTD</div>
+      <div class="nav-overflow">
+        <button class="overflow-btn" aria-haspopup="true" aria-expanded="false" aria-label="Menu">⋯</button>
+        <div class="overflow-menu" role="menu">
+          <button class="nav-btn" data-target="home" type="button">Home</button>
+          <button class="nav-btn" data-target="reimbursement" type="button" id="reimbursementBtn">Reimbursement</button>
+          <button class="nav-btn" data-target="payment" type="button" id="paymentBtn">Payment Request</button>
+          <button class="nav-btn" data-target="admin" type="button" id="adminMenuBtn" style="display:none">Admin Dashboard</button>
+          <button id="logoutBtn" class="nav-btn" type="button" style="display:none">Logout</button>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Home login -->
+  <section id="home" class="section">
+    <div class="card">
+      <h2>Login</h2>
+      <form id="loginForm">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required />
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required />
+        <button type="submit" class="btn-solid">Login</button>
+      </form>
+      <p id="loginMessage" class="error-message"></p>
+    </div>
+  </section>
+
+  <!-- Reimbursement -->
+  <section id="reimbursement" class="section is-hidden">
+    <div class="card">
+      <h2>Staff Reimbursement</h2>
+      <form id="reimbursementForm" enctype="multipart/form-data">
+        <label for="expenseDate">Date:</label>
+        <input type="date" id="expenseDate" name="date" required />
+        <label for="description">Description:</label>
+        <input type="text" id="description" name="description" required />
+        <label for="amount">Amount (USD):</label>
+        <input type="number" id="amount" name="amount" step="0.01" required />
+        <label for="proofFile">Upload Proof:</label>
+        <input type="file" id="proofFile" name="proof" accept=".pdf,.jpg,.jpeg,.png" required />
+        <button type="submit" class="btn-solid">Submit</button>
+      </form>
+    </div>
+    <h3>Submitted Records</h3>
+    <table id="recordsTable">
+      <thead>
+        <tr>
+          <th>Type</th><th>Staff</th><th>Date</th><th>Description</th><th>Amount</th><th>Status</th><th>Proof</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- Payment -->
+  <section id="payment" class="section is-hidden">
+    <div class="card">
+      <h2>Payment Request</h2>
+      <form id="paymentForm" enctype="multipart/form-data">
+        <label for="paymentDate">Date:</label>
+        <input type="date" id="paymentDate" name="date" required />
+        <label for="paymentPurpose">Purpose:</label>
+        <input type="text" id="paymentPurpose" name="description" required />
+        <label for="paymentAmount">Amount (USD):</label>
+        <input type="number" id="paymentAmount" name="amount" step="0.01" required />
+        <label for="paymentProof">Upload Proof:</label>
+        <input type="file" id="paymentProof" name="proof" accept=".pdf,.jpg,.jpeg,.png" required />
+        <button type="submit" class="btn-solid">Submit</button>
+      </form>
+    </div>
+    <h3>Submitted Records</h3>
+    <table id="paymentsTable">
+      <thead>
+        <tr>
+          <th>Type</th><th>Staff</th><th>Date</th><th>Purpose</th><th>Amount</th><th>Status</th><th>Proof</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- Admin -->
+  <section id="admin" class="section is-hidden">
+    <div class="card" id="addUserBox">
+      <h2>Add User</h2>
+      <form id="addUserForm">
+        <label for="newUsername">Username:</label>
+        <input type="text" id="newUsername" name="username" required />
+        <label for="newPassword">Password:</label>
+        <input type="password" id="newPassword" name="password" required />
+        <label for="newRole">Role:</label>
+        <select id="newRole" name="role" required>
+          <option value="staff">staff</option>
+          <option value="admin">admin</option>
+        </select>
+        <button type="submit" class="btn-solid">Create User</button>
+      </form>
+      <p id="createUserMessage" class="error-message"></p>
+    </div>
+
+    <h3>All Users</h3>
+    <table id="usersTable">
+      <thead>
+        <tr><th>Username</th><th>Role</th><th>Created At</th><th>Action</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <h3>All Staff Requests</h3>
+    <table id="adminTable">
+      <thead>
+        <tr><th>Type</th><th>Staff</th><th>Date</th><th>Description</th><th>Amount</th><th>Status</th><th>Proof</th><th>Action</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <p>© 2025 DYNAMIC FUSION CO., LTD. All Rights Reserved.</p>
+  </footer>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
