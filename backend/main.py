@@ -121,15 +121,6 @@ async def startup():
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
-
-@app.get("/health")
-async def health_check():
-    try:
-        await client.admin.command("ping")
-        return {"status": "ok", "mongo": "connected"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
-
 @app.post("/token")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     user = await authenticate_user(form_data.username, form_data.password)
@@ -401,5 +392,11 @@ async def get_admin_record(user: dict = Depends(get_current_user)):
     recs = await requests_collection.find(query).to_list(None)
     recs = [serialize_doc(r) for r in recs]
     return JSONResponse(content=recs)
-
+@app.get("/health")
+async def health_check():
+    try:
+        await client.admin.command("ping")  # optional check MongoDB
+        return {"status": "ok", "mongo": "connected"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
 # End of main.py
