@@ -1,5 +1,4 @@
-# backend/main.py
-from fastapi import FastAPI, Depends, HTTPException, Form, Body, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, Form, Body, UploadFile, File, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -13,8 +12,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 import shutil
+from typing import List, Dict, Any, Optional
 
-from db import users_collection, requests_collection, init_indexes
+# ត្រូវប្រាកដថា File db.py ត្រូវបាន import ត្រឹមត្រូវ
+from db import users_collection, requests_collection, init_indexes, client
 
 load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY", "change_this_secret")
@@ -23,6 +24,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440
 
 app = FastAPI()
 
+# ពិនិត្យមើលផ្លូវ (paths) ទាំងនេះដើម្បីឱ្យត្រូវនឹង Project Structure របស់អ្នក
 base_dir = os.path.dirname(os.path.abspath(__file__))
 static_path = os.path.join(base_dir, "..", "frontend", "static")
 template_path = os.path.join(base_dir, "..", "frontend", "templates")
@@ -32,9 +34,10 @@ os.makedirs(upload_path, exist_ok=True)
 app.mount("/static", StaticFiles(directory=static_path), name="static")
 templates = Jinja2Templates(directory=template_path)
 
+# **FIXED INDENTATION HERE**
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Restrict to your domain in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -75,17 +78,28 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-def serialize_doc(doc):
+def serialize_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
     doc["_id"] = str(doc["_id"])
     if "created_at" in doc and isinstance(doc["created_at"], datetime):
         doc["created_at"] = doc["created_at"].isoformat()
+    # Serialize paid_date
+    if "paid_date" in doc and isinstance(doc["paid_date"], datetime):
+        doc["paid_date"] = doc["paid_date"].isoformat()
     return doc
+
+# --- Helper for Monthly Reset Logic ---
+def get_current_month_start() -> datetime:
+    # Returns the first day of the current month in UTC
+    now = datetime.utcnow()
+    return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+# --- Server Startup & Admin Seeding ---
 
 @app.on_event("startup")
 async def startup():
     try:
         await init_indexes()
-        await users_collection.database.client.admin.command("ping")
+        await client.admin.command("ping")
         print("✅ MongoDB connected and indexes ready")
     except Exception as e:
         print("⚠️ Startup init failed:", e)
@@ -102,9 +116,19 @@ async def startup():
         })
         print("✅ Default admin created: nou /", os.getenv("ADMIN_PASS", "nou123"))
 
+# --- Standard Endpoints ---
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/health")
+async def health_check():
+    try:
+        await client.admin.command("ping")
+        return {"status": "ok", "mongo": "connected"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
 
 @app.post("/token")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
@@ -113,6 +137,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         raise HTTPException(status_code=401, detail="Incorrect username or password")
     access_token = create_access_token({"sub": user["username"], "role": user["role"]})
     return {"access_token": access_token, "token_type": "bearer"}
+
+# --- Admin User Management ---
 
 @app.post("/create_user")
 async def create_user(
@@ -159,6 +185,8 @@ async def delete_user(username: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="User not found")
     return {"message": f"User '{username}' deleted"}
 
+# --- Submission Endpoints ---
+
 @app.post("/submit_reimbursement")
 async def submit_reimbursement(
     date: str = Form(...),
@@ -169,12 +197,10 @@ async def submit_reimbursement(
 ):
     if user["role"] != "staff":
         raise HTTPException(status_code=403, detail="Staff only")
-    # Validate amount
     try:
         amt_val = float(amount)
     except ValueError:
         raise HTTPException(status_code=400, detail="Amount must be a number")
-    # Validate file ext
     ALLOWED_EXTS = {".pdf", ".jpg", ".jpeg", ".png"}
     ext = os.path.splitext(proof.filename)[1].lower()
     if ext not in ALLOWED_EXTS:
@@ -210,12 +236,10 @@ async def submit_payment(
 ):
     if user["role"] != "staff":
         raise HTTPException(status_code=403, detail="Staff only")
-    # Validate amount
     try:
         amt_val = float(amount)
     except ValueError:
         raise HTTPException(status_code=400, detail="Amount must be a number")
-    # Validate file ext
     ALLOWED_EXTS = {".pdf", ".jpg", ".jpeg", ".png"}
     ext = os.path.splitext(proof.filename)[1].lower()
     if ext not in ALLOWED_EXTS:
@@ -241,28 +265,141 @@ async def submit_payment(
     await requests_collection.insert_one(doc)
     return {"message": "Payment request submitted"}
 
+# --- Updated Endpoints for Current Month Data (Staff & Admin Dashboard) ---
+
 @app.get("/my_requests")
 async def get_my_requests(user: dict = Depends(get_current_user)):
+    """
+    Staff: Gets requests submitted in the current month.
+    """
     if user["role"] != "staff":
         raise HTTPException(status_code=403, detail="Staff only")
-    recs = await requests_collection.find({"staffName": user["username"]}).to_list(500)
+    
+    # Filter by current staff AND requests created this month
+    month_start = get_current_month_start()
+    query = {
+        "staffName": user["username"],
+        "created_at": {"$gte": month_start}
+    }
+    
+    recs = await requests_collection.find(query).to_list(500)
     recs = [serialize_doc(r) for r in recs]
     return JSONResponse(content=recs)
 
 @app.get("/admin/requests")
-async def admin_requests(user: dict = Depends(get_current_user)):
+async def admin_requests(
+    user: dict = Depends(get_current_user),
+    type: str = Query(None, description="Filter by type: 'reimbursement' or 'payment'")
+):
+    """
+    Admin: Gets requests for the current month, filtered by type (reimbursement/payment).
+    """
     if user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admins only")
-    recs = await requests_collection.find().to_list(500)
+    
+    month_start = get_current_month_start()
+    # Query for current month's requests
+    query = {"created_at": {"$gte": month_start}}
+
+    if type in ["reimbursement", "payment"]:
+        query["type"] = type
+    
+    recs = await requests_collection.find(query).to_list(500)
     recs = [serialize_doc(r) for r in recs]
     return JSONResponse(content=recs)
 
-@app.patch("/admin/requests/{request_id}")
-async def update_status(request_id: str, payload: dict = Body(...), user: dict = Depends(get_current_user)):
+@app.get("/admin/pending_summary")
+async def get_pending_summary(user: dict = Depends(get_current_user)):
+    """
+    Admin: Counts pending requests for notification.
+    """
     if user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admins only")
+
+    month_start = get_current_month_start()
+    base_query = {"status": "Pending", "created_at": {"$gte": month_start}}
+    
+    r_count = await requests_collection.count_documents({**base_query, "type": "reimbursement"})
+    p_count = await requests_collection.count_documents({**base_query, "type": "payment"})
+
+    return {
+        "reimbursement_pending": r_count,
+        "payment_pending": p_count
+    }
+
+@app.patch("/admin/requests/{request_id}")
+async def update_status(request_id: str, payload: dict = Body(...), user: dict = Depends(get_current_user)):
+    """
+    Admin: Updates request status, including 'Paid' with a paid_date set by server.
+    """
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admins only")
+    
+    try:
+        oid = ObjectId(request_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid Request ID format")
+
     status_val = payload.get("status")
-    if status_val not in ["Pending", "Approved", "Rejected"]:
+    if status_val not in ["Pending", "Approved", "Rejected", "Paid"]:
         raise HTTPException(status_code=400, detail="Invalid status")
-    await requests_collection.update_one({"_id": ObjectId(request_id)}, {"$set": {"status": status_val}})
+
+    update_doc = {"status": status_val}
+    
+    # Logic: Set paid_date when status is Paid
+    if status_val == "Paid":
+        update_doc["paid_date"] = datetime.utcnow()
+    
+    # Optional: If status is reverted from Paid, unset paid_date
+    elif status_val != "Paid":
+         await requests_collection.update_one({"_id": oid}, {"$unset": {"paid_date": ""}})
+
+
+    result = await requests_collection.update_one(
+        {"_id": oid}, 
+        {"$set": update_doc}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Request ID not found")
+    
     return {"message": f"Status updated to {status_val}"}
+
+# --- NEW Endpoints for History and Record ---
+
+@app.get("/history_requests")
+async def get_history_requests(user: dict = Depends(get_current_user)):
+    """
+    Staff/Admin: Gets all Paid and Rejected requests (History table).
+    """
+    query = {
+        "status": {"$in": ["Paid", "Rejected"]}
+    }
+    
+    # Staff can only see their own history
+    if user["role"] == "staff":
+        query["staffName"] = user["username"]
+    
+    # Retrieve all historical data for history table
+    recs = await requests_collection.find(query).to_list(None) 
+    recs = [serialize_doc(r) for r in recs]
+    return JSONResponse(content=recs)
+
+@app.get("/admin/record")
+async def get_admin_record(user: dict = Depends(get_current_user)):
+    """
+    Admin: Gets all requests that are Paid (Record table).
+    """
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admins only")
+    
+    query = {
+        "status": "Paid"
+    }
+    
+    # Retrieve all Paid records
+    recs = await requests_collection.find(query).to_list(None)
+    recs = [serialize_doc(r) for r in recs]
+    return JSONResponse(content=recs)
+
+# End of main.py
