@@ -3,7 +3,7 @@
 # ====================================================================
 
 from fastapi import FastAPI, Depends, HTTPException, Form, Body, UploadFile, File, Query
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -11,29 +11,32 @@ from passlib.context import CryptContext
 from jose import JWTError, jwt
 from bson import ObjectId
 from starlette.requests import Request
-from datetime import datetime, timedelta, timezone 
+from datetime import datetime, timedelta, timezone
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-import os
-import shutil
+import os, shutil, re
 from typing import Dict, Any, Optional
 
-# IMPORTANT: Make sure your db.py provides these
+# --- DB Imports ---
 from db import users_collection, requests_collection, init_indexes, client, get_next_sequence_value
 
 load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY", "change_this_secret")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080")) 
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
 
-# --- App Initialization and Static/Templates Setup ---
-
+# --- App Initialization ---
 app = FastAPI()
 
-base_dir = os.path.dirname(os.path.abspath(__file__))
-static_path = os.path.abspath(os.path.join(base_dir, "..", "frontend", "static"))
-template_path = os.path.abspath(os.path.join(base_dir, "..", "frontend", "templates"))
-upload_path = os.path.join(static_path, "uploads")
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(backend_dir, ".."))
+frontend_dir = os.path.join(project_root, "frontend")
+
+static_path = os.path.join(frontend_dir, "static")
+template_path = os.path.join(frontend_dir, "templates")
+
+# 📂 Persistent storage path (Render Persistent Disk)
+upload_path = "/opt/render/project/uploads"
 os.makedirs(upload_path, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=static_path), name="static")
@@ -41,16 +44,18 @@ templates = Jinja2Templates(directory=template_path)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# --- Security Setup ---
-
+# --- Security ---
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated=["auto"])
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain[:72], hashed)
+    return pwd_context.verify(plain, hashed)
 
 async def get_user(username: str):
     return await users_collection.find_one({"username": username})
@@ -64,7 +69,7 @@ async def authenticate_user(username: str, password: str):
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire.timestamp()}) 
+    to_encode.update({"exp": expire.timestamp()})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
@@ -81,14 +86,12 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    
     user = await get_user(username)
     if user is None:
         raise credentials_exception
     return user
 
-# --- Utility Functions ---
-
+# --- Utility ---
 def serialize_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
     if "request_id" not in doc or not doc["request_id"]:
         doc["request_id"] = f"PR{str(doc['_id'])[-4:]}"
@@ -102,10 +105,18 @@ def serialize_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
 
 def get_current_month_start() -> datetime:
     now = datetime.now(timezone.utc)
-    return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None) 
+    return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
 
-# --- Startup & Health ---
+def clean_filename(original_filename: str, username: str) -> str:
+    name, ext = os.path.splitext(original_filename)
+    ext = ext.lower()
+    safe_name = re.sub(r'[^\w\.\-]', '_', name).strip('_')
+    if not safe_name:
+        safe_name = "attachment"
+    timestamp = int(datetime.now(timezone.utc).timestamp())
+    return f"{username}_{timestamp}_{safe_name}{ext}"
 
+# --- Startup ---
 @app.on_event("startup")
 async def startup():
     try:
@@ -118,7 +129,7 @@ async def startup():
     admin_pass = os.getenv("ADMIN_PASS", "nou123")
     admin = await users_collection.find_one({"username": "nou"})
     if not admin:
-        hashed = pwd_context.hash(admin_pass[:72])
+        hashed = pwd_context.hash(admin_pass)
         await users_collection.insert_one({
             "username": "nou",
             "hashed_password": hashed,
@@ -135,14 +146,12 @@ async def health_check():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
 
-# --- Root HTML Endpoint ---
-
+# --- Root ---
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-# --- Login & Token ---
-
+# --- Login ---
 @app.post("/token")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     user = await authenticate_user(form_data.username, form_data.password)
@@ -151,15 +160,9 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     access_token = create_access_token({"sub": user["username"], "role": user["role"]})
     return {"access_token": access_token, "token_type": "bearer", "role": user["role"]}
 
-# --- Admin User Management ---
-
+# --- User Management ---
 @app.post("/create_user")
-async def create_user(
-    username: str = Form(...),
-    password: str = Form(...),
-    role: str = Form(...),
-    user: dict = Depends(get_current_user)
-):
+async def create_user(username: str = Form(...), password: str = Form(...), role: str = Form(...), user: dict = Depends(get_current_user)):
     if user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admins only")
     existing = await users_collection.find_one({"username": username})
@@ -167,7 +170,7 @@ async def create_user(
         raise HTTPException(status_code=400, detail="Username already exists")
     if role not in ["staff", "admin"]:
         raise HTTPException(status_code=400, detail="Invalid role")
-    hashed = pwd_context.hash(password[:72])
+    hashed = pwd_context.hash(password)
     await users_collection.insert_one({
         "username": username,
         "hashed_password": hashed,
@@ -195,7 +198,15 @@ async def delete_user(username: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="User not found")
     return {"message": f"User '{username}' deleted"}
 
-# --- Submission Endpoints ---
+# --- File Serving ---
+@app.get("/files/{filename}")
+async def get_file(filename: str, user: dict = Depends(get_current_user)):
+    file_path = os.path.join(upload_path, filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(file_path)
+
+# --- Submission Endpoints (Attachment logic improved) ---
 
 @app.post("/submit_reimbursement")
 async def submit_reimbursement(
@@ -217,8 +228,7 @@ async def submit_reimbursement(
     if ext not in ALLOWED_EXTS:
         raise HTTPException(status_code=400, detail="Invalid file type")
 
-    safe_name = "".join(c for c in proof.filename if c.isalnum() or c in ("-", "_", ".", " "))
-    filename = f"{user['username']}_{int(datetime.now(timezone.utc).timestamp())}_{safe_name}"
+    filename = clean_filename(proof.filename, user['username'])
     file_path = os.path.join(upload_path, filename)
     try:
         with open(file_path, "wb") as buffer:
@@ -243,6 +253,7 @@ async def submit_reimbursement(
     await requests_collection.insert_one(doc)
     return {"message": f"Reimbursement submitted with ID: {req_id}", "request_id": req_id}
 
+
 @app.post("/submit_payment")
 async def submit_payment(
     date: str = Form(...),
@@ -263,8 +274,7 @@ async def submit_payment(
     if ext not in ALLOWED_EXTS:
         raise HTTPException(status_code=400, detail="Invalid file type")
 
-    safe_name = "".join(c for c in proof.filename if c.isalnum() or c in ("-", "_", ".", " "))
-    filename = f"{user['username']}_{int(datetime.now(timezone.utc).timestamp())}_{safe_name}"
+    filename = clean_filename(proof.filename, user['username'])
     file_path = os.path.join(upload_path, filename)
     try:
         with open(file_path, "wb") as buffer:
@@ -289,20 +299,19 @@ async def submit_payment(
     await requests_collection.insert_one(doc)
     return {"message": f"Payment request submitted with ID: {req_id}", "request_id": req_id}
 
+
 # --- Dashboard & Review Endpoints ---
 
 @app.get("/my_requests")
 async def get_my_requests(user: dict = Depends(get_current_user)):
     if user["role"] != "staff":
         raise HTTPException(status_code=403, detail="Staff only")
-    month_start = get_current_month_start() 
-    query = {
-        "staffName": user["username"],
-        "created_at": {"$gte": month_start}
-    }
+    month_start = get_current_month_start()
+    query = {"staffName": user["username"], "created_at": {"$gte": month_start}}
     recs = await requests_collection.find(query).to_list(500)
     recs = [serialize_doc(r) for r in recs]
     return JSONResponse(content=recs)
+
 
 @app.get("/admin/requests")
 async def admin_requests(
@@ -319,6 +328,7 @@ async def admin_requests(
     recs = [serialize_doc(r) for r in recs]
     return JSONResponse(content=recs)
 
+
 @app.get("/admin/pending_summary")
 async def get_pending_summary(user: dict = Depends(get_current_user)):
     if user["role"] != "admin":
@@ -327,16 +337,13 @@ async def get_pending_summary(user: dict = Depends(get_current_user)):
     base_query = {"status": "Pending", "created_at": {"$gte": month_start}}
     r_count = await requests_collection.count_documents({**base_query, "type": "reimbursement"})
     p_count = await requests_collection.count_documents({**base_query, "type": "payment"})
-    return {
-        "reimbursement_pending": r_count,
-        "payment_pending": p_count
-    }
+    return {"reimbursement_pending": r_count, "payment_pending": p_count}
+
 
 @app.patch("/admin/requests/{request_id_or_oid}")
 async def update_status(request_id_or_oid: str, payload: dict = Body(...), user: dict = Depends(get_current_user)):
     if user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admins only")
-    # Improved: Try request_id PRxxxx first, else fallback to ObjectId
     doc = await requests_collection.find_one({"request_id": request_id_or_oid})
     if doc:
         query = {"request_id": request_id_or_oid}
@@ -349,31 +356,39 @@ async def update_status(request_id_or_oid: str, payload: dict = Body(...), user:
             query = {"_id": oid}
         except Exception:
             raise HTTPException(status_code=404, detail="Request ID not found")
+
     status_val = payload.get("status")
     if status_val not in ["Pending", "Approved", "Rejected", "Paid"]:
         raise HTTPException(status_code=400, detail="Invalid status")
+
     update_doc = {"status": status_val}
     if status_val == "Paid":
         update_doc["paid_date"] = datetime.now(timezone.utc)
         update_doc["approved_date"] = doc.get("approved_date", datetime.now(timezone.utc))
     elif status_val == "Approved":
         update_doc["approved_date"] = datetime.now(timezone.utc)
+
     update_operation = {"$set": update_doc}
     if status_val in ["Rejected", "Pending"]:
         update_operation["$unset"] = {"paid_date": "", "approved_date": ""}
+
     result = await requests_collection.update_one(query, update_operation)
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Request ID not found")
     return {"message": f"Status updated to {status_val}"}
 
+
+# --- History & Records Endpoints ---
+
 @app.get("/history_requests")
 async def get_history_requests(user: dict = Depends(get_current_user)):
-    query = {} 
+    query = {}
     if user["role"] == "staff":
         query["staffName"] = user["username"]
     recs = await requests_collection.find(query).to_list(None)
     recs = [serialize_doc(r) for r in recs]
     return JSONResponse(content=recs)
+
 
 @app.get("/admin/paid_records")
 async def get_admin_record(user: dict = Depends(get_current_user)):
@@ -383,3 +398,26 @@ async def get_admin_record(user: dict = Depends(get_current_user)):
     recs = await requests_collection.find(query).to_list(None)
     recs = [serialize_doc(r) for r in recs]
     return JSONResponse(content=recs)
+
+
+# --- Logout Endpoint ---
+@app.post("/logout")
+async def logout():
+    return {"message": "Logged out successfully"}
+
+
+# --- Serve Attachments ---
+@app.get("/attachments/{filename}")
+async def get_attachment(filename: str, user: dict = Depends(get_current_user)):
+    doc = await requests_collection.find_one({"proof_filename": filename})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+    if user["role"] != "admin" and doc["staffName"] != user["username"]:
+        raise HTTPException(status_code=403, detail="Not authorized to view this attachment")
+    file_path = os.path.join(upload_path, filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File missing on server")
+    return StaticFiles(directory=upload_path)(filename)
+
+
+# --- Error Handling
