@@ -206,14 +206,7 @@ async def delete_user(username: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="User not found")
     return {"message": f"User '{username}' deleted"}
 
-# --- File Serving ---
-@app.get("/files/{filename}")
-async def get_file(filename: str, user: dict = Depends(get_current_user)):
-    file_path = os.path.join(upload_path, filename)
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(file_path)
-
+# === លុប Route `/files/{filename}` ចាស់ដែលគ្មានសុវត្ថិភាពចោល ===
 # --- Submission Endpoints ---
 @app.post("/submit_reimbursement")
 async def submit_reimbursement(
@@ -421,15 +414,20 @@ async def logout():
     return {"message": "Logged out successfully"}
 
 
-# --- Serve Attachments ---
+# === បានបន្ថែម Route ដែលមានសុវត្ថិភាពសម្រាប់ Serve Attachments ===
 @app.get("/attachments/{filename}")
 async def get_attachment(filename: str, user: dict = Depends(get_current_user)):
     doc = await requests_collection.find_one({"proof_filename": filename})
+    
     if not doc:
         raise HTTPException(status_code=404, detail="Attachment not found")
+        
+    # ការត្រួតពិនិត្យ Authorization: អនុញ្ញាតឱ្យ Admin ឬ Staff ម្ចាស់សំណើចូលមើលបាន
     if user["role"] != "admin" and doc["staffName"] != user["username"]:
         raise HTTPException(status_code=403, detail="Not authorized to view this attachment")
+        
     file_path = os.path.join(upload_path, filename)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File missing on server")
+        
     return FileResponse(file_path)
