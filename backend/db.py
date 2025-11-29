@@ -72,3 +72,10 @@ async def init_indexes():
     
     # NEW: Initialize the request ID counter
     await init_counters()
+    # --- Utility: Clear all data (for reset/testing) ---
+async def clear_all_data():
+    """Delete all documents from users, requests, and counters collections."""
+    await users_collection.delete_many({})
+    await requests_collection.delete_many({})
+    await counters_collection.delete_many({})
+    print("✅ Cleared all data from users, requests, and counters collections")

@@ -1,7 +1,3 @@
-# ====================================================================
-# STAFF REIMBURSEMENT & PAYMENT PORTAL - BACKEND (FINAL CLEANED main.py)
-# ====================================================================
-
 from fastapi import FastAPI, Depends, HTTPException, Form, Body, UploadFile, File, Query
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -105,6 +101,7 @@ def serialize_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
 
 def get_current_month_start() -> datetime:
     now = datetime.now(timezone.utc)
+    # Using 'tzinfo=None' to match the storage type in startup() and update_status()
     return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
 
 def clean_filename(original_filename: str, username: str) -> str:
@@ -116,7 +113,7 @@ def clean_filename(original_filename: str, username: str) -> str:
     timestamp = int(datetime.now(timezone.utc).timestamp())
     return f"{username}_{timestamp}_{safe_name}{ext}"
 
-# --- Startup ---
+# --- Startup & Shutdown ---
 @app.on_event("startup")
 async def startup():
     try:
@@ -138,6 +135,12 @@ async def startup():
         })
         print("✅ Default admin created: nou /", admin_pass)
 
+@app.on_event("shutdown")
+async def shutdown():
+    client.close()
+    print("🔒 MongoDB connection closed")
+
+# --- Health ---
 @app.get("/health")
 async def health_check():
     try:
@@ -162,7 +165,12 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 # --- User Management ---
 @app.post("/create_user")
-async def create_user(username: str = Form(...), password: str = Form(...), role: str = Form(...), user: dict = Depends(get_current_user)):
+async def create_user(
+    username: str = Form(...), 
+    password: str = Form(...), 
+    role: str = Form(...), 
+    user: dict = Depends(get_current_user)
+):
     if user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admins only")
     existing = await users_collection.find_one({"username": username})
@@ -206,8 +214,7 @@ async def get_file(filename: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(file_path)
 
-# --- Submission Endpoints (Attachment logic improved) ---
-
+# --- Submission Endpoints ---
 @app.post("/submit_reimbursement")
 async def submit_reimbursement(
     date: str = Form(...),
@@ -251,7 +258,8 @@ async def submit_reimbursement(
         "created_at": datetime.now(timezone.utc)
     }
     await requests_collection.insert_one(doc)
-    return {"message": f"Reimbursement submitted with ID: {req_id}", "request_id": req_id}
+    # Corrected message for Reimbursement
+    return {"message": f"Reimbursement request submitted with ID: {req_id}", "request_id": req_id}
 
 
 @app.post("/submit_payment")
@@ -301,7 +309,6 @@ async def submit_payment(
 
 
 # --- Dashboard & Review Endpoints ---
-
 @app.get("/my_requests")
 async def get_my_requests(user: dict = Depends(get_current_user)):
     if user["role"] != "staff":
@@ -339,15 +346,18 @@ async def get_pending_summary(user: dict = Depends(get_current_user)):
     p_count = await requests_collection.count_documents({**base_query, "type": "payment"})
     return {"reimbursement_pending": r_count, "payment_pending": p_count}
 
-
 @app.patch("/admin/requests/{request_id_or_oid}")
 async def update_status(request_id_or_oid: str, payload: dict = Body(...), user: dict = Depends(get_current_user)):
     if user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admins only")
+    
+    # Check for request_id first
     doc = await requests_collection.find_one({"request_id": request_id_or_oid})
+    query = None
     if doc:
         query = {"request_id": request_id_or_oid}
     else:
+        # Check for ObjectId
         try:
             oid = ObjectId(request_id_or_oid)
             doc = await requests_collection.find_one({"_id": oid})
@@ -362,14 +372,20 @@ async def update_status(request_id_or_oid: str, payload: dict = Body(...), user:
         raise HTTPException(status_code=400, detail="Invalid status")
 
     update_doc = {"status": status_val}
+    # Using datetime.now() without tzinfo for consistency with get_current_month_start()
+    current_time = datetime.now() 
+    
     if status_val == "Paid":
-        update_doc["paid_date"] = datetime.now(timezone.utc)
-        update_doc["approved_date"] = doc.get("approved_date", datetime.now(timezone.utc))
+        update_doc["paid_date"] = current_time
+        # Ensure approved_date is set if Paid is set directly
+        if doc.get("approved_date") is None:
+             update_doc["approved_date"] = current_time
     elif status_val == "Approved":
-        update_doc["approved_date"] = datetime.now(timezone.utc)
+        update_doc["approved_date"] = current_time
 
     update_operation = {"$set": update_doc}
     if status_val in ["Rejected", "Pending"]:
+        # Unset date fields if status is reverted or rejected
         update_operation["$unset"] = {"paid_date": "", "approved_date": ""}
 
     result = await requests_collection.update_one(query, update_operation)
@@ -379,7 +395,6 @@ async def update_status(request_id_or_oid: str, payload: dict = Body(...), user:
 
 
 # --- History & Records Endpoints ---
-
 @app.get("/history_requests")
 async def get_history_requests(user: dict = Depends(get_current_user)):
     query = {}
@@ -417,7 +432,4 @@ async def get_attachment(filename: str, user: dict = Depends(get_current_user)):
     file_path = os.path.join(upload_path, filename)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File missing on server")
-    return StaticFiles(directory=upload_path)(filename)
-
-
-# --- Error Handling
+    return FileResponse(file_path)
