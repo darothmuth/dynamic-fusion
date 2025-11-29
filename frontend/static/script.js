@@ -1,813 +1,549 @@
-// ---------- Welcome animation ----------
+// ---------- Delay Helper ----------
 function delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
-
-async function runWelcomeSequence() {
-    const companyName = document.getElementById("companyName");
-    const welcomeText = document.getElementById("welcomeText");
-    const logoBig = document.getElementById("logoBig");
-    const welcomeScreen = document.getElementById("welcome-screen");
-
-    logoBig.style.display = 'block'; // Make logo visible before animation
-    logoBig.classList.add("logo-fly");
-    await delay(2000);
-
-    logoBig.classList.add("logo-hide");
-    await delay(1000);
-    
-
-    companyName.textContent = "DYNAMIC FUSION CO., LTD";
-    companyName.classList.add("typing");
-    await delay(2000);
-
-    welcomeText.textContent = "Staff Reimbursement & Payment Portal";
-    welcomeText.classList.add("typing");
-    await delay(1000);
-
-    welcomeScreen.classList.add("fade-out");
-    setTimeout(() => {
-        welcomeScreen.classList.add("is-hidden");
-        // Ensure initial view is the login form after animation
-        if (!token) {
-             document.getElementById("login-form-section").classList.remove("is-hidden");
-        }
-    }, 1000);
-}
-document.addEventListener('DOMContentLoaded', runWelcomeSequence);
-
 
 // ---------- State ----------
 let token = null;
 let currentRole = null;
 
+// ---------- Welcome Animation ----------
+async function runWelcomeSequence() {
+  const companyName = document.getElementById("companyName");
+  const welcomeText = document.getElementById("welcomeText");
+  const logoBig = document.getElementById("logoBig");
+  const welcomeScreen = document.getElementById("welcome-screen");
+  logoBig.style.display = 'block';
+  logoBig.classList.add("logo-fly");
+  await delay(2000);
+  logoBig.classList.add("logo-hide");
+  await delay(1000);
+  companyName.textContent = "DYNAMIC FUSION CO., LTD";
+  companyName.classList.add("typing");
+  await delay(2000);
+  welcomeText.textContent = "Staff Reimbursement & Payment Portal";
+  welcomeText.classList.add("typing");
+  await delay(1000);
+  welcomeScreen.classList.add("fade-out");
+  setTimeout(() => {
+    welcomeScreen.classList.add("is-hidden");
+    showSection("login-form-section");
+  }, 1000);
+}
+
 // ---------- Helpers ----------
 function showSection(id) {
-    // List all possible main sections/views
-    ["login-form-section", "home", "reimbursement", "payment", "admin", "admin-review-main", "history", "record"].forEach(sec => {
-        const el = document.getElementById(sec);
-        if (el) el.classList.toggle("is-hidden", sec !== id);
-    });
+  [
+    "login-form-section", "home", "reimbursement", "payment", "admin",
+    "admin-review-main", "history", "record"
+  ].forEach(sec => {
+    const el = document.getElementById(sec);
+    if (el) el.classList.toggle("is-hidden", sec !== id);
+  });
 }
-function toggleMenu(open) {
-    const menu = document.querySelector(".overflow-menu");
-    const btn = document.querySelector(".overflow-btn");
-    menu.classList.toggle("is-open", open);
-    btn.setAttribute("aria-expanded", open ? "true" : "false");
-}
-function authHeaders() {
-    return token ? { "Authorization": `Bearer ${token}` } : {};
-}
-function handleUnauthorized(res) {
-    if (res.status === 401) {
-        logout();
-        return true;
-    }
-    return false;
-}
-// Formatting for date DD/MM/YYYY
+function authHeaders() { return token ? { "Authorization": `Bearer ${token}` } : {}; }
+function handleUnauthorized(res) { if (res.status === 401) { logout(); return true; } return false; }
 function formatDate(dateString) {
-    if (!dateString) return '';
-    // Use only the date part (YYYY-MM-DD)
-    if (dateString.includes('T')) {
-        dateString = dateString.split('T')[0];
-    }
-    const parts = dateString.split('-');
-    // Assuming YYYY-MM-DD format
-    if (parts.length === 3) {
-        return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-    return dateString; 
+  if (!dateString) return '';
+  if (dateString.includes('T')) dateString = dateString.split('T')[0];
+  const parts = dateString.split('-');
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return dateString;
+}
+function proofLink(r) { return r.proof_filename ? `/static/uploads/${r.proof_filename}` : ""; }
+function getApplicationTitle(type) { return type === 'reimbursement' ? 'Reimbursement Request Application' : 'Payment Request Application'; }
+function statusBadge(r) {
+  const s = r.status;
+  if (s === 'Paid') return `<span class="status-paid">Complete (${formatDate(r.paid_date)})</span>`;
+  if (s === 'Approved') return `<span class="status-approved">${s}</span>`;
+  if (s === 'Rejected') return `<span class="status-rejected">${s}</span>`;
+  return `<span class="status-pending">${s}</span>`;
+}
+function escapeHTML(str) {
+  if (typeof str !== 'string') return str;
+  return str.replace(/[&<>"'`]/g, s => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;',
+    '"': '&quot;', "'": '&#39;', '`': '&#96;'
+  }[s]));
 }
 
-
-// ---------- Navbar Event Listeners ----------
-document.querySelector(".overflow-btn").addEventListener("click", () => {
-    const menu = document.querySelector(".overflow-menu");
-    const open = !menu.classList.contains("is-open");
-    toggleMenu(open);
-});
-
+// ---------- Navbar UI ----------
 document.querySelectorAll(".nav-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-        const target = btn.getAttribute("data-target");
-        toggleMenu(false);
-
-        if (!token) {
-            // If logged out and clicks Home, show Login
-            showSection("login-form-section"); 
-            return;
-        }
-
-        if (target === "home") {
-            showSection("home");
-            if (currentRole === 'admin') {
-                document.getElementById("home-title").textContent = "Admin Pending Review Summary";
-                document.getElementById("staff-pending-reimbursement").style.display = 'none';
-                document.getElementById("staff-pending-payment").style.display = 'none';
-                document.getElementById("admin-pending-review").style.display = 'block';
-                loadPendingRequestsSummary(); // Reload admin notification
-            } else {
-                document.getElementById("home-title").textContent = "Your Pending Requests";
-                document.getElementById("staff-pending-reimbursement").style.display = 'block';
-                document.getElementById("staff-pending-payment").style.display = 'block';
-                document.getElementById("admin-pending-review").style.display = 'none';
-                loadStaffPendingRequests(); // Load staff pending tables
-            }
-        } else if (target === "reimbursement") {
-            showSection("reimbursement");
-            document.getElementById("reimbursementForm").style.display = token && currentRole === 'staff' ? "block" : "none";
-            if (token && currentRole === 'staff') loadMyRequests();
-        } else if (target === "payment") {
-            showSection("payment");
-            document.getElementById("paymentForm").style.display = token && currentRole === 'staff' ? "block" : "none";
-            if (token && currentRole === 'staff') loadMyPaymentRequests();
-        } else if (target === "admin") {
-            if (currentRole !== "admin") return;
-            showSection("admin"); 
-            loadAdminUsers();
-        } 
-        else if (target === "admin-review-main") {
-            if (currentRole !== "admin") return;
-            showSection("admin-review-main"); 
-            // Hide both tables initially when entering the section
-            document.getElementById('admin-reimbursement-panel').classList.add('is-hidden');
-            document.getElementById('admin-payment-panel').classList.add('is-hidden');
-        }
-        else if (target === "history") {
-            showSection("history");
-            loadHistoryRequests(); 
-            // Hide both tables initially when entering the section
-            document.getElementById('history-reimbursement').classList.add('is-hidden');
-            document.getElementById('history-payment').classList.add('is-hidden');
-        } else if (target === "record") {
-            if (currentRole !== "admin") return;
-            showSection("record");
-            loadRecordRequests(); 
-            // Hide both tables initially when entering the section
-            document.getElementById('record-reimbursement').classList.add('is-hidden');
-            document.getElementById('record-payment').classList.add('is-hidden');
-        }
-    });
-});
-
-// Admin Review Table Switchers
-function showAdminReviewTable(type) {
-    // 1. Hide both panels first
-    document.getElementById('admin-reimbursement-panel').classList.add('is-hidden');
-    document.getElementById('admin-payment-panel').classList.add('is-hidden');
-    
-    // 2. Show the corresponding panel and Load Data
-    const targetElement = document.getElementById(`admin-${type}-panel`);
-    if (targetElement) {
-        targetElement.classList.remove('is-hidden');
-        loadAdminRequests(type);
+  btn.addEventListener("click", () => {
+    const target = btn.getAttribute("data-target");
+    if (!token) { showSection("login-form-section"); return; }
+    if (target === "home") {
+      showSection("home");
+      if (currentRole === 'admin') { setAdminHomeUI(); loadPendingRequestsSummary(); }
+      else { setStaffHomeUI(); loadStaffPendingRequests(); }
     }
+    else if (target === "reimbursement") {
+      showSection("reimbursement");
+      document.getElementById("reimbursementForm").style.display = (token && currentRole === 'staff') ? "block" : "none";
+      if (token && currentRole === 'staff') loadMyRequests();
+    }
+    else if (target === "payment") {
+      showSection("payment");
+      document.getElementById("paymentForm").style.display = (token && currentRole === 'staff') ? "block" : "none";
+      if (token && currentRole === 'staff') loadMyPaymentRequests();
+    }
+    else if (target === "admin") {
+      if (currentRole !== "admin") return;
+      showSection("admin"); loadAdminUsers();
+    }
+    else if (target === "admin-review-main") {
+      if (currentRole !== "admin") return;
+      showSection("admin-review-main");
+      showAdminReviewTable('reimbursement');
+    }
+    else if (target === "history") {
+      showSection("history");
+      loadHistoryRequests(); showHistoryTable('reimbursement', document.querySelector('#history .tab-button.active'));
+    }
+    else if (target === "record") {
+      if (currentRole !== "admin") return;
+      showSection("record");
+      loadRecordRequests(); showRecordTable('reimbursement', document.querySelector('#record .tab-button.active'));
+    }
+  });
+});
+function setAdminHomeUI() {
+  document.getElementById("home-title").textContent = "Admin Pending Review Summary";
+  document.getElementById("staff-pending-reimbursement").style.display = 'none';
+  document.getElementById("staff-pending-payment").style.display = 'none';
+  document.getElementById("admin-pending-review").style.display = 'block';
 }
-
-// History and Record Table Switchers
-function showHistoryTable(type) {
-    // 1. Hide both tables first
-    document.getElementById('history-reimbursement').classList.add('is-hidden');
-    document.getElementById('history-payment').classList.add('is-hidden');
-    
-    // 2. Show the corresponding table
-    document.getElementById(`history-${type}`).classList.remove('is-hidden');
+function setStaffHomeUI() {
+  document.getElementById("home-title").textContent = "Your Pending Requests";
+  document.getElementById("staff-pending-reimbursement").style.display = 'block';
+  document.getElementById("staff-pending-payment").style.display = 'block';
+  document.getElementById("admin-pending-review").style.display = 'none';
 }
-function showRecordTable(type) {
-    // 1. Hide both tables first
-    document.getElementById('record-reimbursement').classList.add('is-hidden');
-    document.getElementById('record-payment').classList.add('is-hidden');
-
-    // 2. Show the corresponding table
-    document.getElementById(`record-${type}`).classList.remove('is-hidden');
-}
-
 
 // ---------- Login / Logout ----------
-const loginForm = document.getElementById("loginForm");
-const loginMessage = document.getElementById("loginMessage");
-const logoutBtn = document.getElementById("logoutBtn");
-const adminMenuBtn = document.getElementById("adminMenuBtn");
-const adminReviewBtn = document.getElementById("adminReviewBtn");
-const reimbursementBtn = document.getElementById("reimbursementBtn");
-const paymentBtn = document.getElementById("paymentBtn");
-const historyMenuBtn = document.getElementById("historyMenuBtn");
-const recordMenuBtn = document.getElementById("recordMenuBtn");
-const adminNotification = document.getElementById("admin-pending-review"); // Changed to container ID
-
-loginForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    loginMessage.textContent = "";
-    const username = document.getElementById("username").value.trim();
-    const password = document.getElementById("password").value;
-
-    const form = new FormData();
-    form.append("username", username);
-    form.append("password", password);
-
-    try {
-        const res = await fetch("/token", { method: "POST", body: form });
-        if (!res.ok) {
-            loginMessage.textContent = "Login failed. Please check username/password.";
-            return;
-        }
-        const data = await res.json();
-        token = data.access_token;
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        currentRole = payload.role;
-
-        document.getElementById("login-form-section").classList.add("is-hidden"); // Hide login
-        logoutBtn.style.display = "inline-block";
-        historyMenuBtn.style.display = "inline-block";
-        
-        // Show/Hide admin links
-        const isAdmin = currentRole === "admin";
-        adminMenuBtn.style.display = isAdmin ? "inline-block" : "none";
-        recordMenuBtn.style.display = isAdmin ? "inline-block" : "none"; 
-        adminReviewBtn.style.display = isAdmin ? "inline-block" : "none"; 
-        reimbursementBtn.style.display = isAdmin ? "none" : "inline-block";
-        paymentBtn.style.display = isAdmin ? "none" : "inline-block";
-        document.getElementById("adminDivider").style.display = isAdmin ? "block" : "none";
-
-        // Show Home section and load data based on role
-        showSection("home");
-
-        if (isAdmin) {
-            document.getElementById("home-title").textContent = "Admin Pending Review Summary";
-            document.getElementById("staff-pending-reimbursement").style.display = 'none';
-            document.getElementById("staff-pending-payment").style.display = 'none';
-            adminNotification.style.display = 'block';
-            loadPendingRequestsSummary();
-        } else {
-            document.getElementById("home-title").textContent = "Your Pending Requests";
-            document.getElementById("staff-pending-reimbursement").style.display = 'block';
-            document.getElementById("staff-pending-payment").style.display = 'block';
-            adminNotification.style.display = 'none';
-            loadStaffPendingRequests();
-        }
-    } catch (e) {
-        console.error(e);
-        loginMessage.textContent = "Login failed. Please check username/password.";
-    }
+document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("loginMessage");
+  msg.textContent = "";
+  const username = document.getElementById("username")?.value.trim();
+  const password = document.getElementById("password")?.value;
+  const form = new FormData();
+  form.append("username", username); form.append("password", password);
+  try {
+    const res = await fetch("/token", { method: "POST", body: form });
+    if (!res.ok) { msg.textContent = "Login failed."; return; }
+    const data = await res.json();
+    token = data.access_token;
+    let payload = null;
+    try { payload = JSON.parse(atob(token.split(".")[1])); }
+    catch { msg.textContent = "Invalid token."; return; }
+    currentRole = payload.role;
+    document.getElementById("login-form-section").classList.add("is-hidden");
+    document.getElementById("logoutBtn").style.display = "inline-block";
+    document.getElementById("historyMenuBtn").style.display = "inline-block";
+    const isAdmin = currentRole === "admin";
+    document.getElementById("adminMenuBtn").style.display = isAdmin ? "inline-block" : "none";
+    document.getElementById("recordMenuBtn").style.display = isAdmin ? "inline-block" : "none";
+    document.getElementById("adminReviewBtn").style.display = isAdmin ? "inline-block" : "none";
+    document.getElementById("reimbursementBtn").style.display = isAdmin ? "none" : "inline-block";
+    document.getElementById("paymentBtn").style.display = isAdmin ? "none" : "inline-block";
+    document.getElementById("adminDivider").style.display = isAdmin ? "block" : "none";
+    showSection("home");
+    if (isAdmin) { setAdminHomeUI(); loadPendingRequestsSummary(); }
+    else { setStaffHomeUI(); loadStaffPendingRequests(); }
+  } catch { msg.textContent = "Login failed."; }
 });
-
+document.getElementById("logoutBtn")?.addEventListener("click", logout);
 function logout() {
-    token = null;
-    currentRole = null;
-    // Hide all menu buttons (except Home)
-    logoutBtn.style.display = "none";
-    adminMenuBtn.style.display = "none";
-    recordMenuBtn.style.display = "none"; 
-    adminReviewBtn.style.display = "none"; 
-    historyMenuBtn.style.display = "none"; 
-    reimbursementBtn.style.display = "inline-block";
-    paymentBtn.style.display = "inline-block";
-    document.getElementById("adminDivider").style.display = "none";
-
-    // Hide admin notification on logout
-    document.getElementById("adminNotification").style.display = "none"; 
-    
-    // Show the login form section on logout
-    showSection("login-form-section");
-    document.getElementById("reimbursementForm").style.display = "none";
-    document.getElementById("paymentForm").style.display = "none";
-    document.querySelectorAll("tbody").forEach(el => el.innerHTML = "");
+  token = null; currentRole = null;
+  ["logoutBtn","adminMenuBtn","recordMenuBtn","adminReviewBtn","historyMenuBtn","reimbursementBtn","paymentBtn"].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = "none";
+  });
+  document.getElementById("adminDivider").style.display = "none";
+  document.getElementById("admin-pending-review").style.display = "none";
+  showSection("login-form-section");
+  document.getElementById("reimbursementForm").style.display = "none";
+  document.getElementById("paymentForm").style.display = "none";
+  document.querySelectorAll("tbody").forEach(el => el.innerHTML = "");
 }
-logoutBtn.addEventListener("click", logout);
 
 // ---------- Staff submit forms ----------
-document.getElementById("reimbursementForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    try {
-        const res = await fetch("/submit_reimbursement", { method: "POST", headers: authHeaders(), body: fd });
-        if (handleUnauthorized(res)) return;
-        if (!res.ok) throw new Error("Submit failed");
-        await res.json();
-        e.target.reset();
-        alert("Reimbursement submitted successfully!");
-        await loadMyRequests();
-        // Update home screen after submission
-        if(document.getElementById("home").classList.contains("is-hidden") === false) {
-            loadStaffPendingRequests();
-        }
-    } catch {
-        alert("Failed to submit reimbursement.");
+document.getElementById("reimbursementForm")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  try {
+    const res = await fetch("/submit_reimbursement", { method: "POST", headers: authHeaders(), body: fd });
+    if (handleUnauthorized(res)) return;
+    if (!res.ok) throw new Error("Submit failed");
+    await res.json();
+    e.target.reset();
+    alert("Reimbursement submitted successfully!");
+    await loadMyRequests();
+    if (!document.getElementById("home").classList.contains("is-hidden")) {
+      loadStaffPendingRequests();
     }
+  } catch {
+    alert("Failed to submit reimbursement.");
+  }
+});
+document.getElementById("paymentForm")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  try {
+    const res = await fetch("/submit_payment", { method: "POST", headers: authHeaders(), body: fd });
+    if (handleUnauthorized(res)) return;
+    if (!res.ok) throw new Error("Submit failed");
+    await res.json();
+    e.target.reset();
+    alert("Payment Request submitted successfully!");
+    await loadMyPaymentRequests();
+    if (!document.getElementById("home").classList.contains("is-hidden")) {
+      loadStaffPendingRequests();
+    }
+  } catch {
+    alert("Failed to submit payment request.");
+  }
 });
 
-document.getElementById("paymentForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    try {
-        const res = await fetch("/submit_payment", { method: "POST", headers: authHeaders(), body: fd });
-        if (handleUnauthorized(res)) return;
-        if (!res.ok) throw new Error("Submit failed");
-        await res.json();
-        e.target.reset();
-        alert("Payment Request submitted successfully!");
-        await loadMyPaymentRequests();
-        // Update home screen after submission
-        if(document.getElementById("home").classList.contains("is-hidden") === false) {
-            loadStaffPendingRequests();
-        }
-    } catch {
-        alert("Failed to submit payment request.");
-    }
-});
-
-
-// ---------- Staff current month requests (Used for Reimbursement/Payment tabs) ----------
+// ---------- Table & Tab Loading ----------
 async function loadMyRequests() {
-    const tbody = document.querySelector("#recordsTable tbody");
-    tbody.innerHTML = "<tr><td colspan='7'>Loading...</td></tr>";
-    try {
-        const res = await fetch("/my_requests", { headers: authHeaders() });
-        if (handleUnauthorized(res)) return;
-        const data = await res.json();
-        const reimbursements = data.filter(r => r.type === "reimbursement");
-        
-        tbody.innerHTML = "";
-        if (!reimbursements.length) {
-            tbody.innerHTML = "<tr><td colspan='7'>No reimbursement requests yet</td></tr>";
-            return;
-        }
-        reimbursements.forEach(r => {
-            const proofUrl = r.proof_filename ? `/static/uploads/${r.proof_filename}` : "";
-            let statusDisplay = r.status;
-            if (r.status === 'Paid') statusDisplay = `<span class="status-paid">Paid (${formatDate(r.paid_date)})</span>`;
-            else if (r.status === 'Pending') statusDisplay = `<span class="status-pending">${r.status}</span>`;
-            else if (r.status === 'Approved') statusDisplay = `<span class="status-approved">${r.status}</span>`;
-            else if (r.status === 'Rejected') statusDisplay = `<span class="status-rejected">${r.status}</span>`;
-
-            tbody.innerHTML += `
-                <tr>
-                    <td>${r.type}</td>
-                    <td>${r.staffName}</td>
-                    <td>${formatDate(r.date)}</td>
-                    <td>${r.description || r.purpose}</td>
-                    <td>$${r.amount}</td>
-                    <td>${statusDisplay}</td>
-                    <td>${r.proof_filename ? `<a href="${proofUrl}" target="_blank">View</a>` : ""}</td>
-                </tr>`;
-        });
-    } catch {
-        tbody.innerHTML = "<tr><td colspan='7'>Failed to load requests</td></tr>";
+  const tbody = document.querySelector("#recordsTable tbody");
+  tbody.innerHTML = "<tr><td colspan='9'>Loading...</td></tr>";
+  try {
+    const res = await fetch("/my_requests", { headers: authHeaders() });
+    if (handleUnauthorized(res)) return;
+    const data = await res.json();
+    const reimbursements = data.filter(r => r.type === "reimbursement");
+    tbody.innerHTML = "";
+    if (!reimbursements.length) {
+      tbody.innerHTML = "<tr><td colspan='9'>No reimbursement requests yet</td></tr>";
+      return;
     }
+    reimbursements.forEach(r => tbody.appendChild(renderRow(r, "reimbursement")));
+  } catch {
+    tbody.innerHTML = "<tr><td colspan='9'>Failed to load requests</td></tr>";
+  }
 }
-
 async function loadMyPaymentRequests() {
-    const tbody = document.querySelector("#paymentsTable tbody");
-    tbody.innerHTML = "<tr><td colspan='7'>Loading...</td></tr>";
-    try {
-        const res = await fetch("/my_requests", { headers: authHeaders() });
-        if (handleUnauthorized(res)) return;
-        const data = await res.json();
-        const payments = data.filter(r => r.type === "payment");
-        
-        tbody.innerHTML = "";
-        if (!payments.length) {
-            tbody.innerHTML = "<tr><td colspan='7'>No payment requests yet</td></tr>";
-            return;
-        }
-        payments.forEach(r => {
-            const proofUrl = r.proof_filename ? `/static/uploads/${r.proof_filename}` : "";
-            let statusDisplay = r.status;
-            if (r.status === 'Paid') statusDisplay = `<span class="status-paid">Paid (${formatDate(r.paid_date)})</span>`;
-            else if (r.status === 'Pending') statusDisplay = `<span class="status-pending">${r.status}</span>`;
-            else if (r.status === 'Approved') statusDisplay = `<span class="status-approved">${r.status}</span>`;
-            else if (r.status === 'Rejected') statusDisplay = `<span class="status-rejected">${r.status}</span>`;
-            
-            tbody.innerHTML += `
-                <tr>
-                    <td>${r.type}</td>
-                    <td>${r.staffName}</td>
-                    <td>${formatDate(r.date)}</td>
-                    <td>${r.description || r.purpose}</td>
-                    <td>$${r.amount}</td>
-                    <td>${statusDisplay}</td>
-                    <td>${r.proof_filename ? `<a href="${proofUrl}" target="_blank">View</a>` : ""}</td>
-                </tr>`;
-        });
-    } catch {
-        tbody.innerHTML = "<tr><td colspan='7'>Failed to load payment requests</td></tr>";
+  const tbody = document.querySelector("#paymentsTable tbody");
+  tbody.innerHTML = "<tr><td colspan='9'>Loading...</td></tr>";
+  try {
+    const res = await fetch("/my_requests", { headers: authHeaders() });
+    if (handleUnauthorized(res)) return;
+    const data = await res.json();
+    const payments = data.filter(r => r.type === "payment");
+    tbody.innerHTML = "";
+    if (!payments.length) {
+      tbody.innerHTML = "<tr><td colspan='9'>No payment requests yet</td></tr>";
+      return;
     }
+    payments.forEach(r => tbody.appendChild(renderRow(r, "payment")));
+  } catch {
+    tbody.innerHTML = "<tr><td colspan='9'>Failed to load payment requests</td></tr>";
+  }
 }
 
-// ---------- Load Staff Pending Requests for the Home Screen ----------
+// ---------- Staff Home pending ----------
 async function loadStaffPendingRequests() {
-    if (currentRole !== 'staff') return;
-
-    const rTbody = document.querySelector("#staffPendingReimbursementTable tbody");
-    const pTbody = document.querySelector("#staffPendingPaymentTable tbody");
-    rTbody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
-    pTbody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
-
-    try {
-        const res = await fetch("/my_requests", { headers: authHeaders() });
-        if (handleUnauthorized(res)) return;
-        const data = await res.json();
-
-        const pendingReimbursements = data.filter(r => r.type === "reimbursement" && r.status === "Pending");
-        const pendingPayments = data.filter(r => r.type === "payment" && r.status === "Pending");
-
-        // Populate Reimbursement Table
-        rTbody.innerHTML = "";
-        if (!pendingReimbursements.length) {
-            rTbody.innerHTML = "<tr><td colspan='6'>No pending reimbursement requests.</td></tr>";
-        } else {
-            pendingReimbursements.forEach(r => {
-                const proofUrl = r.proof_filename ? `/static/uploads/${r.proof_filename}` : "";
-                rTbody.innerHTML += `
-                    <tr>
-                        <td>${r.type}</td>
-                        <td>${formatDate(r.date)}</td>
-                        <td>${r.description || r.purpose}</td>
-                        <td>$${r.amount}</td>
-                        <td><span class="status-pending">${r.status}</span></td>
-                        <td>${r.proof_filename ? `<a href="${proofUrl}" target="_blank">View</a>` : ""}</td>
-                    </tr>`;
-            });
-        }
-
-        // Populate Payment Table
-        pTbody.innerHTML = "";
-        if (!pendingPayments.length) {
-            pTbody.innerHTML = "<tr><td colspan='6'>No pending payment requests.</td></tr>";
-        } else {
-            pendingPayments.forEach(r => {
-                const proofUrl = r.proof_filename ? `/static/uploads/${r.proof_filename}` : "";
-                pTbody.innerHTML += `
-                    <tr>
-                        <td>${r.type}</td>
-                        <td>${formatDate(r.date)}</td>
-                        <td>${r.description || r.purpose}</td>
-                        <td>$${r.amount}</td>
-                        <td><span class="status-pending">${r.status}</span></td>
-                        <td>${r.proof_filename ? `<a href="${proofUrl}" target="_blank">View</a>` : ""}</td>
-                    </tr>`;
-            });
-        }
-
-    } catch (e) {
-        console.error("Error loading staff pending requests:", e);
-        rTbody.innerHTML = "<tr><td colspan='6'>Failed to load pending requests.</td></tr>";
-        pTbody.innerHTML = "<tr><td colspan='6'>Failed to load pending requests.</td></tr>";
-    }
+  if (currentRole !== 'staff') return;
+  const rTbody = document.querySelector("#staffPendingReimbursementTable tbody");
+  const pTbody = document.querySelector("#staffPendingPaymentTable tbody");
+  rTbody.innerHTML = '<tr><td colspan="9">Loading...</td></tr>';
+  pTbody.innerHTML = '<tr><td colspan="9">Loading...</td></tr>';
+  try {
+    const res = await fetch("/my_requests", { headers: authHeaders() });
+    if (handleUnauthorized(res)) return;
+    const data = await res.json();
+    const pendingReimbursements = data.filter(r => r.type === "reimbursement" && r.status === "Pending");
+    const pendingPayments = data.filter(r => r.type === "payment" && r.status === "Pending");
+    rTbody.innerHTML = "";
+    pTbody.innerHTML = "";
+    if (!pendingReimbursements.length) rTbody.innerHTML = "<tr><td colspan='9'>No pending reimbursement requests.</td></tr>";
+    else pendingReimbursements.forEach(r=>rTbody.appendChild(renderRow(r,"reimbursement")));
+    if (!pendingPayments.length) pTbody.innerHTML = "<tr><td colspan='9'>No pending payment requests.</td></tr>";
+    else pendingPayments.forEach(r=>pTbody.appendChild(renderRow(r,"payment")));
+  } catch (e) {
+    rTbody.innerHTML = "<tr><td colspan='9'>Failed to load pending requests.</td></tr>";
+    pTbody.innerHTML = "<tr><td colspan='9'>Failed to load pending requests.</td></tr>";
+  }
 }
 
-
-// ---------- Admin Notification Function ----------
+// ---------- Admin Notification ----------
 async function loadPendingRequestsSummary() {
-    const notificationContainer = document.getElementById("adminNotification");
-    const summaryText = document.getElementById("notificationText");
-    notificationContainer.style.display = 'none';
-
-    if (currentRole !== 'admin') return;
-
-    try {
-        const res = await fetch("/admin/pending_summary", { headers: authHeaders() });
-        if (handleUnauthorized(res)) return;
-        
-        const data = await res.json();
-        const totalPending = data.reimbursement_pending + data.payment_pending;
-
-        if (totalPending > 0) {
-            summaryText.innerHTML = `
-                <p>⚠️ **Attention Admin:** There are **${totalPending}** pending requests awaiting review:</p>
-                <ul>
-                    <li>**${data.reimbursement_pending}** Reimbursement Requests</li>
-                    <li>**${data.payment_pending}** Payment Requests</li>
-                </ul>
-                <p>Click **Review Requests** in the menu to take action.</p>
-            `;
-            notificationContainer.style.display = 'block';
-        } else {
-            summaryText.innerHTML = `<p>✅ Great job! There are currently no pending requests to review.</p>`;
-            notificationContainer.style.display = 'block';
-        }
-    } catch (e) {
-        console.error("Failed to load pending summary:", e);
-    }
+  const summaryText = document.getElementById("notificationText");
+  const adminPendingReviewContainer = document.getElementById("admin-pending-review");
+  if (adminPendingReviewContainer) adminPendingReviewContainer.style.display = 'none';
+  if (currentRole !== 'admin') return;
+  try {
+    const res = await fetch("/admin/pending_summary", { headers: authHeaders() });
+    if (handleUnauthorized(res)) return;
+    const data = await res.json();
+    const totalPending = data.reimbursement_pending + data.payment_pending;
+    summaryText.innerHTML = totalPending > 0
+      ? `<p>⚠️ <strong>Attention Admin:</strong> There are <strong>${totalPending}</strong> pending requests awaiting review:</p>
+         <ul><li><strong>${data.reimbursement_pending}</strong> Reimbursement Requests</li>
+             <li><strong>${data.payment_pending}</strong> Payment Requests</li></ul>
+         <p>Click <strong>Review Requests</strong> in the menu to take action.</p>`
+      : `<p>✅ Great job! There are currently no pending requests to review.</p>`;
+    if (adminPendingReviewContainer) adminPendingReviewContainer.style.display = 'block';
+  } catch{}
 }
 
-// ---------- Admin requests table (Review Requests) ----------
-async function loadAdminRequests(type) {
-    const tableId = type === 'reimbursement' ? "#adminReimbursementTable tbody" : "#adminPaymentTable tbody";
-    const tbody = document.querySelector(tableId);
-    tbody.innerHTML = '<tr><td colspan="9">Loading requests...</td></tr>';
-    
-    if (currentRole !== 'admin') {
-        tbody.innerHTML = '<tr><td colspan="9">Access Denied.</td></tr>';
-        return;
-    }
-    
-    try {
-        const res = await fetch(`/admin/requests?type=${type}`, { headers: authHeaders() });
-        if (handleUnauthorized(res)) return;
-        const data = await res.json();
-        
-        tbody.innerHTML = ""; 
+// ---------- Admin Review ----------
+function showAdminReviewTable(type) {
+  document.getElementById('admin-reimbursement-panel').classList.add('is-hidden');
+  document.getElementById('admin-payment-panel').classList.add('is-hidden');
+  const targetElement = document.getElementById(`admin-${type}-panel`);
+  if (targetElement) {
+    targetElement.classList.remove('is-hidden');
+    loadAdminRequests(type);
+  }
+  document.querySelectorAll('#admin-review-main .tab-button').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.textContent.toLowerCase().includes(type)) btn.classList.add('active');
+  });
+}
+async function loadAdminRequests(type){
+  const tbody=document.querySelector(type==='reimbursement'?"#adminReimbursementTable tbody":"#adminPaymentTable tbody");
+  tbody.innerHTML='<tr><td colspan="10">Loading requests...</td></tr>';
+  if(currentRole!=='admin'){tbody.innerHTML='<tr><td colspan="10">Access Denied.</td></tr>';return;}
+  try{
+    const res=await fetch(`/admin/requests?type=${type}`,{headers:authHeaders()});
+    if(handleUnauthorized(res))return;
+    const data=await res.json();
+    tbody.innerHTML="";
+    if (!data.length) {tbody.innerHTML=`<tr><td colspan='10'>No ${type} requests found for this month</td></tr>`; return;}
+    data.forEach(r => tbody.appendChild(renderAdminReviewRow(r,type)));
+  }catch{tbody.innerHTML=`<tr><td colspan='10'>Failed to load admin ${type} requests</td></tr>`;}
+}
+function renderAdminReviewRow(r,type) {
+  const row = document.createElement('tr');
+  row.innerHTML = `
+    <td>${escapeHTML(r.type)}</td>
+    <td>${escapeHTML(r.request_id||'N/A')}</td>
+    <td>${escapeHTML(r.staffName)}</td>
+    <td>${formatDate(r.date)}</td>
+    <td>${escapeHTML(r.description||r.purpose)}</td>
+    <td>$${escapeHTML(r.amount)}</td>
+    <td>${statusBadge(r)}</td>
+    <td>${r.proof_filename?`<a href="${proofLink(r)}" target="_blank">View</a>`:'N/A'}</td>
+    <td><button type="button" class="btn-solid view-btn" data-record='${encodeURIComponent(JSON.stringify(r))}'>View</button></td>
+    <td>${reviewActionButtons(r,type)}</td>
+  `;
+  return row;
+}
+function reviewActionButtons(r,type){
+  if(r.status==='Pending'){
+    return `<button type="button" class="approve-btn" data-id="${r.request_id}" data-type="${type}">Approve</button>
+      <button type="button" class="reject-btn" data-id="${r.request_id}" data-type="${type}">Reject</button>`;
+  }
+  else if(r.status==='Approved')return `<button type="button" class="paid-btn" data-id="${r.request_id}" data-type="${type}">Paid</button>`;
+  else if(r.status==='Paid')return `<span class="status-paid">Complete</span>`;
+  else if(r.status==='Rejected')return `<span class="status-rejected">Rejected</span>`;
+  return '';
+}
+document.addEventListener("click", function(e){
+  // Admin review action buttons
+  if(e.target.classList.contains('approve-btn')) updateStatus(e.target.getAttribute("data-id"),"Approved",e.target.getAttribute("data-type"));
+  if(e.target.classList.contains('reject-btn')) updateStatus(e.target.getAttribute("data-id"),"Rejected",e.target.getAttribute("data-type"));
+  if(e.target.classList.contains('paid-btn')) updateStatus(e.target.getAttribute("data-id"),"Paid",e.target.getAttribute("data-type"));
+  // Modal show (works everywhere)
+  if(e.target.classList.contains('view-btn')){
+    const rec = JSON.parse(decodeURIComponent(e.target.getAttribute('data-record')));
+    showRequestDetailsModal(rec);
+  }
+  // User management delete btn
+  if(e.target.classList.contains('delete-btn')) {
+    const username = e.target.getAttribute("data-username");
+    deleteUser(username);
+  }
+  // Modal close
+  if(e.target.classList.contains('btn-secondary') && e.target.closest('#proofModal')) {
+    hideRequestDetailsModal();
+  }
+});
 
-        if (!data.length) {
-            tbody.innerHTML = `<tr><td colspan='9'>No ${type} requests found for this month</td></tr>`;
-            return;
-        }
-        
-        data.forEach(r => {
-            const proofUrl = r.proof_filename ? `/static/uploads/${r.proof_filename}` : "";
-            let actionButtons = '';
-            let statusDisplay = r.status;
-            
-            if (r.status === 'Pending') {
-                actionButtons = `
-                    <button type="button" class="approve-btn" onclick="updateStatus('${r._id}','Approved', '${type}')">Approve</button>
-                    <button type="button" class="reject-btn" onclick="updateStatus('${r._id}','Rejected', '${type}')">Reject</button>
-                `;
-                statusDisplay = `<span class="status-pending">${r.status}</span>`;
-            } else if (r.status === 'Approved') {
-                actionButtons = `
-                    <button type="button" class="btn-solid" onclick="updateStatus('${r._id}','Paid', '${type}')">Mark Paid</button>
-                `;
-                statusDisplay = `<span class="status-approved">${r.status}</span>`;
-            } else if (r.status === 'Paid') {
-                statusDisplay = `<span class="status-paid">Paid (${formatDate(r.paid_date)})</span>`; 
-                // 🟢 NEW: ប្តូរទៅប៊ូតុង View ដែលហៅ Modal
-                actionButtons = `<button type="button" class="btn-solid" onclick='showRequestDetailsModal(${JSON.stringify(r)})'>View</button>`;
-            } else if (r.status === 'Rejected') {
-                statusDisplay = `<span class="status-rejected">Rejected</span>`;
-                actionButtons = 'Cancelled';
-            } else {
-                actionButtons = r.status;
-            }
-            
-            tbody.innerHTML += `
-                <tr>
-                    <td>${r.type}</td>
-                    <td>${r.staffName}</td>
-                    <td>${formatDate(r.date)}</td>
-                    <td>${r.description || r.purpose}</td>
-                    <td>$${r.amount}</td>
-                    <td>${statusDisplay}</td>
-                    <td>${r.proof_filename ? `<a href="${proofUrl}" target="_blank">View Proof</a>` : ""}</td>
-                    <td>${actionButtons}</td>
-                </tr>`;
-        });
-        
-    } catch {
-        tbody.innerHTML = `<tr><td colspan='9'>Failed to load admin ${type} requests</td></tr>`;
-    }
+// ---------- Update Status (Admin) ----------
+async function updateStatus(id, status, type){try{
+  const res=await fetch(`/admin/requests/${id}`,{
+    method:"PATCH",headers:{"Content-Type":"application/json",...authHeaders()},
+    body:JSON.stringify({status})
+  });
+  if(handleUnauthorized(res))return;
+  if(!res.ok){
+    const errorDetails=await res.json().catch(()=>({}));
+    const message=errorDetails.detail||`Server responded with status ${res.status}.`;
+    throw new Error(message);
+  }
+  await loadAdminRequests(type);loadPendingRequestsSummary();
+  if(currentRole==='staff'&&!document.getElementById("home").classList.contains("is-hidden")){loadStaffPendingRequests();}
+}catch(e){alert(`Failed to update status. Details: ${e.message||"Check console for server response."}`);}}
+
+// ---------- History ----------
+function showHistoryTable(type,button){
+  document.getElementById('history-reimbursement').classList.add('is-hidden');
+  document.getElementById('history-payment').classList.add('is-hidden');
+  document.getElementById(`history-${type}`).classList.remove('is-hidden');
+  document.querySelectorAll('#history .tab-button').forEach(btn=>btn.classList.remove('active'));
+  if(button)button.classList.add('active');
+  loadHistoryRequestsTab(type);
+}
+async function loadHistoryRequests(){
+  loadHistoryRequestsTab('reimbursement');
+  loadHistoryRequestsTab('payment');
+}
+async function loadHistoryRequestsTab(type){
+  const tbody=document.querySelector(type==="reimbursement"?"#historyReimbursementTable tbody":"#historyPaymentTable tbody");
+  tbody.innerHTML='<tr><td colspan="9">Loading...</td></tr>';
+  try{
+    const res=await fetch("/history_requests",{headers:authHeaders()});
+    if(handleUnauthorized(res))return;
+    const data=await res.json();
+    const filtered = data.filter(r=>r.type===type);
+    tbody.innerHTML="";
+    if(!filtered.length){tbody.innerHTML=`<tr><td colspan='9'>No ${type} history found.</td></tr>`;return;}
+    filtered.forEach(r=>tbody.appendChild(renderRow(r,type)));
+  }catch{
+    tbody.innerHTML="<tr><td colspan='9'>Failed to load history.</td></tr>";
+  }
+}
+function renderRow(r,type){
+  const row=document.createElement('tr');
+  row.innerHTML=`
+    <td>${escapeHTML(r.type)}</td>
+    <td>${escapeHTML(r.request_id||'N/A')}</td>
+    <td>${escapeHTML(r.staffName)}</td>
+    <td>${formatDate(r.date)}</td>
+    <td>${escapeHTML(type==="reimbursement"?r.description:r.purpose||r.description)}</td>
+    <td>$${escapeHTML(r.amount)}</td>
+    <td>${statusBadge(r)}</td>
+    <td>${r.proof_filename?`<a href="${proofLink(r)}" target="_blank">View</a>`:'N/A'}</td>
+    <td><button type="button" class="btn-solid view-btn" data-record='${encodeURIComponent(JSON.stringify(r))}'>View</button></td>
+  `
+  return row;
 }
 
-// ---------- Admin update status (FIXED LOGIC) ----------
-async function updateStatus(id, status, type) {
-    let bodyData = { status: status }; 
-
-    try {
-        const res = await fetch(`/admin/requests/${id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json", ...authHeaders() },
-            body: JSON.stringify(bodyData) 
-        });
-        if (handleUnauthorized(res)) return;
-        
-        if (!res.ok) {
-            const errorDetails = await res.json().catch(() => ({}));
-            console.error("Server Error Details:", errorDetails);
-            const message = errorDetails.detail || `Server responded with status ${res.status}.`;
-            throw new Error(message); 
-        }
-        
-        // Reload current admin table and summary
-        await loadAdminRequests(type); 
-        loadPendingRequestsSummary(); 
-        
-        // If staff is viewing home screen, update their tables too
-        if (currentRole === 'staff' && document.getElementById("home").classList.contains("is-hidden") === false) {
-            loadStaffPendingRequests();
-        }
-
-    } catch (e) {
-        alert(`Failed to update status. Details: ${e.message || "Check console for server response."}`); 
-    }
+// ---------- Paid Record ----------
+function showRecordTable(type,button){
+  document.getElementById('record-reimbursement').classList.add('is-hidden');
+  document.getElementById('record-payment').classList.add('is-hidden');
+  document.getElementById(`record-${type}`).classList.remove('is-hidden');
+  document.querySelectorAll('#record .tab-button').forEach(btn=>btn.classList.remove('active'));
+  if(button)button.classList.add('active');
+  loadRecordRequestsTab(type);
 }
-
-// ----------------------------------------------------
-// 🟢 NEW: Modal Logic for viewing Paid Request Details
-// ----------------------------------------------------
-function showRequestDetailsModal(r) {
-    const modal = document.getElementById('proofModal');
-    const modalDetails = document.getElementById('modalDetails');
-    const proofFrame = document.getElementById('proofFrame');
-
-    // 1. Prepare Proof URL
-    const proofUrl = r.proof_filename ? `/static/uploads/${r.proof_filename}` : "";
-
-    // 2. Set details in Modal Grid
-    modalDetails.innerHTML = `
-        <div class="modal-info-grid">
-            <p><strong>Request Type:</strong> ${r.type.charAt(0).toUpperCase() + r.type.slice(1)}</p>
-            <p><strong>Staff Name:</strong> ${r.staffName}</p>
-            <p><strong>Request Date:</strong> ${formatDate(r.date)}</p>
-            <p><strong>Description/Purpose:</strong> ${r.description || r.purpose}</p>
-            <p><strong>Amount Requested:</strong> $${r.amount}</p>
-            <p><strong>Current Status:</strong> <span class="status-paid">${r.status}</span></p>
-            <p><strong>Admin Approval Date:</strong> ${formatDate(r.approved_date || 'N/A')}</p>
-            <p><strong>Amount Paid Date:</strong> ${formatDate(r.paid_date || 'N/A')}</p>
-        </div>
-    `;
-    
-    // 3. Show proof in iframe
-    if (proofUrl) {
-        proofFrame.src = proofUrl;
-        proofFrame.style.display = 'block';
-    } else {
-        proofFrame.src = "";
-        proofFrame.style.display = 'none';
-        modalDetails.innerHTML += `<p style="color: red;">No attachment/proof file found.</p>`;
-    }
-    
-    // 4. Show Modal
-    modal.classList.remove('is-hidden');
+async function loadRecordRequests(){
+  loadRecordRequestsTab('reimbursement');
+  loadRecordRequestsTab('payment');
 }
-
-
-// ---------- Admin create user / loadAdminUsers / deleteUser (User Management) ----------
-const addUserForm = document.getElementById("addUserForm");
-const createUserMessage = document.getElementById("createUserMessage");
-
-if(addUserForm) { // Check if element exists (since it's an admin-only feature)
-    addUserForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        createUserMessage.textContent = "";
-        const fd = new FormData(addUserForm);
-        try {
-            const res = await fetch("/create_user", {
-                method: "POST",
-                headers: authHeaders(),
-                body: fd
-            });
-            const data = await res.json();
-            if (handleUnauthorized(res)) return;
-            if (res.ok) {
-                createUserMessage.textContent = "User created successfully!";
-                addUserForm.reset();
-                await loadAdminUsers(); 
-            } else {
-                createUserMessage.textContent = data.detail || "Failed to create user.";
-            }
-        } catch {
-            createUserMessage.textContent = "Error creating user.";
-        }
+async function loadRecordRequestsTab(type){
+  const tbody=document.querySelector(type==="reimbursement"?"#recordReimbursementTable tbody":"#recordPaymentTable tbody");
+  tbody.innerHTML='<tr><td colspan="9">Loading...</td></tr>';
+  try{
+    const res=await fetch("/admin/paid_records",{headers:authHeaders()});
+    if(handleUnauthorized(res))return;
+    const data=await res.json();
+    const filtered = data.filter(r=>r.type===type);
+    tbody.innerHTML="";
+    if(!filtered.length){tbody.innerHTML=`<tr><td colspan='9'>No paid ${type} records found.</td></tr>`;return;}
+    filtered.forEach(r=>{
+      const row=document.createElement('tr');
+      row.innerHTML=`
+        <td>${escapeHTML(r.type)}</td>
+        <td>${escapeHTML(r.request_id||'N/A')}</td>
+        <td>${escapeHTML(r.staffName)}</td>
+        <td>${formatDate(r.date)}</td>
+        <td>${escapeHTML(type==="reimbursement"?r.description:r.purpose||r.description)}</td>
+        <td>$${escapeHTML(r.amount)}</td>
+        <td>${formatDate(r.paid_date)}</td>
+        <td>${r.proof_filename?`<a href="${proofLink(r)}" target="_blank">View</a>`:'N/A'}</td>
+        <td><button type="button" class="btn-solid view-btn" data-record='${encodeURIComponent(JSON.stringify(r))}'>View</button></td>
+      `
+      tbody.appendChild(row);
     });
+  }catch{
+    tbody.innerHTML="<tr><td colspan='9'>Failed to load records.</td></tr>";
+  }
 }
 
-async function loadAdminUsers() {
-    const tbody = document.querySelector("#usersTable tbody");
-    if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="4">Loading users...</td></tr>';
-    try {
-        const res = await fetch("/admin/users", { headers: authHeaders() });
-        if (handleUnauthorized(res)) return;
-        const data = await res.json();
-        
-        tbody.innerHTML = "";
-        if (!data.length) {
-            tbody.innerHTML = "<tr><td colspan='4'>No users found</td></tr>";
-            return;
-        }
-        data.forEach(u => {
-            tbody.innerHTML += `
-                <tr>
-                    <td>${u.username}</td>
-                    <td>${u.role}</td>
-                    <td>${u.created_at || "N/A"}</td>
-                    <td>
-                        <button type="button" class="delete-btn" onclick="deleteUser('${u.username}')">Delete</button>
-                    </td>
-                    
-                </tr>`;
-        });
-    } catch {
-        tbody.innerHTML = "<tr><td colspan='4'>Failed to load users</td></tr>";
-    }
+// ---------- Modal logic ----------
+function showRequestDetailsModal(r){
+  const modal=document.getElementById('proofModal');
+  const modalDetails=document.getElementById('modalDetails');
+  const proofFrame=document.getElementById('proofFrame');
+  const applicationTitle=document.getElementById('applicationTitle');
+  applicationTitle.textContent=`${getApplicationTitle(r.type)} — ${r.request_id||''}`;
+  modalDetails.innerHTML=`
+    <div class="modal-info-grid">
+      <p><strong>Request Type:</strong> ${escapeHTML(r.type)}</p>
+      <p><strong>Staff Name:</strong> ${escapeHTML(r.staffName)}</p>
+      <p><strong>Request Date:</strong> ${formatDate(r.date)}</p>
+      <p><strong>Description/Purpose:</strong> ${escapeHTML(r.description||r.purpose)}</p>
+      <p><strong>Amount Requested:</strong> $${escapeHTML(r.amount)}</p>
+      <p><strong>Status:</strong> ${statusBadge(r)}</p>
+      <p><strong>Approved Date:</strong> ${formatDate(r.approved_date||'')}</p>
+      <p><strong>Paid Date:</strong> ${formatDate(r.paid_date||'')}</p>
+    </div>
+  `;
+  const proofUrl=proofLink(r);
+  if(proofUrl){proofFrame.src=proofUrl;proofFrame.style.display='block';}
+  else{proofFrame.src="";proofFrame.style.display='none';modalDetails.innerHTML+=`<p style="color:red;">No attachment/proof file found.</p>`;}
+  modal.classList.remove('is-hidden');
 }
+function hideRequestDetailsModal(){
+  document.getElementById('proofModal').classList.add('is-hidden');
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')hideRequestDetailsModal();});
 
+// ---------- Admin User Management ----------
+async function loadAdminUsers(){
+  const tbody=document.querySelector("#usersTable tbody");
+  tbody.innerHTML="<tr><td colspan='4'>Loading users...</td></tr>";
+  try{
+    const res=await fetch("/admin/users",{headers:authHeaders()});
+    if(handleUnauthorized(res))return;
+    const data=await res.json();
+    tbody.innerHTML=data.length?"":"<tr><td colspan='4'>No users found</td></tr>";
+    data.forEach(u=>{
+      const row=document.createElement('tr');
+      row.innerHTML=`
+        <td>${escapeHTML(u.username)}</td>
+        <td>${escapeHTML(u.role)}</td>
+        <td>${formatDate(u.created_at)}</td>
+        <td><button class="delete-btn" data-username="${escapeHTML(u.username)}">Delete</button></td>
+      `;
+      tbody.appendChild(row);
+    });
+  }catch{
+    tbody.innerHTML="<tr><td colspan='4'>Failed to load users</td></tr>";
+  }
+}
 async function deleteUser(username) {
-    if (!confirm(`Delete user '${username}'?`)) return;
-    try {
-        const res = await fetch(`/admin/users/${username}`, {
-            method: "DELETE",
-            headers: authHeaders()
-        });
-        if (handleUnauthorized(res)) return;
-        if (!res.ok) {
-            const msg = await res.json().catch(() => ({}));
-            alert(msg.detail || "Failed to delete user.");
-            return;
-        }
-        await loadAdminUsers();
-    } catch {
-        alert("Failed to delete user.");
-    }
+  if(!confirm(`Delete user '${username}'?`)) return;
+  try {
+    const res=await fetch(`/admin/users/${username}`,{method:"DELETE",headers:authHeaders()});
+    if(handleUnauthorized(res))return;
+    if(!res.ok) throw new Error("Delete failed");
+    await loadAdminUsers();
+  }catch{alert("Failed to delete user.");}
 }
-
-
-// ---------- History & Record Functions ----------
-async function loadHistoryRequests() {
-    const rTbody = document.querySelector("#historyReimbursementTable tbody");
-    const pTbody = document.querySelector("#historyPaymentTable tbody");
-    rTbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
-    pTbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
-
-    try {
-        const res = await fetch("/history_requests", { headers: authHeaders() }); 
-        if (handleUnauthorized(res)) return;
-        const data = await res.json();
-        
-        const reimbursements = data.filter(r => r.type === "reimbursement");
-        const payments = data.filter(r => r.type === "payment");
-
-        populateHistoryTable(rTbody, reimbursements, 'reimbursement');
-        populateHistoryTable(pTbody, payments, 'payment');
-
-    } catch {
-        rTbody.innerHTML = "<tr><td colspan='7'>Failed to load reimbursement history.</td></tr>";
-        pTbody.innerHTML = "<tr><td colspan='7'>Failed to load payment history.</td></tr>";
+document.getElementById("addUserForm")?.addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const fd=new FormData(e.target);
+  try{
+    const res=await fetch("/create_user",{method:"POST",headers:authHeaders(),body:fd});
+    if(handleUnauthorized(res))return;
+    if(!res.ok){
+      const msg=await res.json().catch(()=>({}));
+      document.getElementById("createUserMessage").textContent = msg.detail || "Failed to create user.";
+      return;
     }
-}
+    await res.json();
+    e.target.reset();
+    document.getElementById("createUserMessage").textContent="User created successfully!";
+    await loadAdminUsers();
+  }catch{
+    document.getElementById("createUserMessage").textContent="Error creating user.";
+  }
+});
 
-function populateHistoryTable(tbody, data, type) {
-    tbody.innerHTML = "";
-    if (!data.length) {
-        tbody.innerHTML = `<tr><td colspan='7'>No ${type} history found.</td></tr>`;
-        return;
-    }
-
-    data.forEach(r => {
-        let statusDisplay = r.status === 'Paid' 
-            ? `<span class="status-paid">Paid (${formatDate(r.paid_date)})</span>` 
-            : `<span class="status-rejected">Rejected</span>`;
-        
-        tbody.innerHTML += `
-            <tr>
-                <td>${r.type}</td>
-                <td>${r.staffName}</td>
-                <td>${formatDate(r.date)}</td>
-                <td>${r.description || r.purpose}</td>
-                <td>$${r.amount}</td>
-                <td>${statusDisplay}</td>
-                <td>${r.proof_filename ? `<button type="button" class="btn-solid" onclick='showRequestDetailsModal(${JSON.stringify(r)})'>View</button>` : ""}</td>
-            </tr>`;
-    });
-}
-
-async function loadRecordRequests() {
-    const rTbody = document.querySelector("#recordReimbursementTable tbody");
-    const pTbody = document.querySelector("#recordPaymentTable tbody");
-    rTbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
-    pTbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
-    
-    if (currentRole !== 'admin') {
-        rTbody.innerHTML = '<tr><td colspan="7">Access Denied.</td></tr>';
-        pTbody.innerHTML = '<tr><td colspan="7">Access Denied.</td></tr>';
-        return;
-    }
-
-    try {
-        const res = await fetch("/admin/record", { headers: authHeaders() });
-        if (handleUnauthorized(res)) return;
-        const data = await res.json();
-        
-        const reimbursements = data.filter(r => r.type === "reimbursement");
-        const payments = data.filter(r => r.type === "payment");
-
-        populateRecordTable(rTbody, reimbursements, 'reimbursement');
-        populateRecordTable(pTbody, payments, 'payment');
-
-    } catch {
-        rTbody.innerHTML = "<tr><td colspan='7'>Failed to load reimbursement records.</td></tr>";
-        pTbody.innerHTML = "<tr><td colspan='7'>Failed to load payment records.</td></tr>";
-    }
-}
-
-function populateRecordTable(tbody, data, type) {
-    tbody.innerHTML = "";
-    if (!data.length) {
-        tbody.innerHTML = `<tr><td colspan='7'>No paid ${type} records found.</td></tr>`;
-        return;
-    }
-
-    data.forEach(r => {
-        
-        tbody.innerHTML += `
-            <tr>
-                <td>${r.type}</td>
-                <td>${r.staffName}</td>
-                <td>${formatDate(r.date)}</td>
-                <td>${r.description || r.purpose}</td>
-                <td>$${r.amount}</td>
-                <td><span class="status-paid">${formatDate(r.paid_date)}</span></td>
-                <td>${r.proof_filename ? `<button type="button" class="btn-solid" onclick='showRequestDetailsModal(${JSON.stringify(r)})'>View</button>` : ""}</td>
-            </tr>`;
-    });
-}
+// ---------- Initialize ----------
+document.addEventListener('DOMContentLoaded', runWelcomeSequence);

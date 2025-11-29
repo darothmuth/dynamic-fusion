@@ -1,327 +1,375 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Dynamic Fusion Portal</title>
-    <link rel="stylesheet" href="/static/style.css"> 
-    </head>
+    <link rel="stylesheet" href="/static/style.css"/>
+</head>
 <body>
-
     <div id="welcome-screen" class="welcome-screen">
-        <img id="logoBig" src="/static/logo-color.png" alt="Company logo" style="display:none;">
-        <h1 id="companyName"></h1>
-        <h3 id="welcomeText"></h3>
+        <div class="welcome-content">
+            <img id="logoBig" src="/static/logo-color.png" alt="Company Logo" class="logo-big" style="display:none;">
+            <h1 id="companyName"></h1>
+            <p id="welcomeText"></p>
+        </div>
     </div>
-    
-    <header>
+
+    <div class="portal-container">
         <nav class="navbar">
-            <div class="logo">Dynamic Fusion Portal</div>
-            <div class="nav-links" id="navbar">
-                <div class="nav-overflow">
-                    <button class="overflow-btn" aria-expanded="false" aria-controls="overflow-menu">☰</button>
-                    <div class="overflow-menu" id="overflow-menu">
-                        <button class="nav-btn" data-target="home">Home / Pending</button>
-                        <button class="nav-btn" data-target="reimbursement" id="reimbursementBtn" style="display:none;">Reimbursement</button>
-                        <button class="nav-btn" data-target="payment" id="paymentBtn" style="display:none;">Payment Request</button>
-                        <button class="nav-btn" data-target="history" id="historyMenuBtn" style="display:none;">History</button>
-                        <hr id="adminDivider" style="display:none;">
-                        <button class="nav-btn" data-target="admin-review-main" id="adminReviewBtn" style="display:none;">Review Requests</button>
-                        <button class="nav-btn" data-target="record" id="recordMenuBtn" style="display:none;">Paid Records</button>
-                        <button class="nav-btn" data-target="admin" id="adminMenuBtn" style="display:none;">Manage Users</button>
-                        
-                        <button class="nav-btn reject-btn" id="logoutBtn" style="display:none;">Logout</button>
-                    </div>
-                </div>
+            <div class="logo">
+                <img src="/static/logo-color.png" alt="Logo">
+                <span>Dynamic Fusion Portal</span>
+            </div>
+            <div class="nav-links">
+                <button class="nav-btn" data-target="home">Home</button>
+                <button class="nav-btn" data-target="reimbursement" id="reimbursementBtn" style="display:none;">Reimbursement</button>
+                <button class="nav-btn" data-target="payment" id="paymentBtn" style="display:none;">Payment Request</button>
+                <button class="nav-btn" data-target="history" id="historyMenuBtn" style="display:none;">History</button>
+                <div class="nav-divider" id="adminDivider" style="display:none;"></div>
+                <button class="nav-btn" data-target="admin-review-main" id="adminReviewBtn" style="display:none;">Review Requests</button>
+                <button class="nav-btn" data-target="record" id="recordMenuBtn" style="display:none;">Paid Records</button>
+                <button class="nav-btn" data-target="admin" id="adminMenuBtn" style="display:none;">User Management</button>
+                <button class="btn-secondary" id="logoutBtn" style="display:none;">Logout</button>
             </div>
         </nav>
-    </header>
 
-    <div class="container section">
-        
-        <div id="login-form-section" class="card">
-            <h2 id="welcomeTextLogin">Welcome, Guest! Please log in.</h2>
-            <form id="loginForm">
-                <label for="username">Username:</label>
-                <input type="text" id="username" required>
-                <label for="password">Password:</label>
-                <input type="password" id="password" required>
-                <button type="submit" class="btn-solid btn-block">Login</button>
-                <p id="loginMessage" class="error-message"></p>
-            </form>
-        </div>
+        <main class="content">
+            <section id="login-form-section" class="main-content-section is-hidden">
+                <h2>Portal Login</h2>
+                <form id="loginForm" class="form-panel">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required>
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
+                    <button type="submit" class="btn-solid">Login</button>
+                    <p id="loginMessage" class="message"></p>
+                </form>
+            </section>
 
-        <div id="home" class="is-hidden">
-            <h2 id="home-title">Your Pending Requests</h2>
-
-            <div id="admin-pending-review" class="card" style="display:none;">
-                <h3>Pending Requests Summary</h3>
-                <div id="adminNotification" class="card" style="display:none;">
-                    <p id="notificationText"></p>
+            <section id="home" class="main-content-section is-hidden">
+                <h2 id="home-title">Your Pending Requests</h2>
+                <div id="admin-pending-review" class="panel admin-panel" style="display:none;">
+                    <h3>Pending Review Summary</h3>
+                    <div id="adminNotification" class="notification-box">
+                        <p id="notificationText">Loading summary...</p>
+                    </div>
                 </div>
-                <button type="button" class="btn-solid btn-block" data-target="admin-review-main" onclick="document.getElementById('adminReviewBtn').click()">Go to Review Dashboard</button>
-            </div>
+                <div id="staff-pending-reimbursement" class="panel" style="display:none;">
+                    <h3>Pending Reimbursement Requests</h3>
+                    <div class="table-container">
+                        <table id="staffPendingReimbursementTable">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>ID</th>
+                                    <th>Staff Name</th>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Attachment</th>
+                                    <th>Invoice</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="staff-pending-payment" class="panel" style="display:none;">
+                    <h3>Pending Payment Requests</h3>
+                    <div class="table-container">
+                        <table id="staffPendingPaymentTable">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>ID</th>
+                                    <th>Staff Name</th>
+                                    <th>Date</th>
+                                    <th>Purpose</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Attachment</th>
+                                    <th>Invoice</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
 
-            <div id="staff-pending-reimbursement">
-                <h3 class="mt-2">Pending Reimbursement Requests</h3>
-                <div class="table-responsive">
-                    <table id="staffPendingReimbursementTable" class="data-table">
+            <section id="reimbursement" class="main-content-section is-hidden">
+                <h2>Reimbursement Requests</h2>
+                <div class="form-container">
+                    <h3>Submit New Reimbursement</h3>
+                    <form id="reimbursementForm" class="form-panel" enctype="multipart/form-data">
+                        <label>Date:</label><input type="date" name="date" required>
+                        <label>Description:</label><input type="text" name="description" required>
+                        <label>Amount ($):</label><input type="number" name="amount" step="0.01" required>
+                        <label>Attachment:</label><input type="file" name="proof" accept=".pdf,.jpg,.jpeg,.png" required>
+                        <button type="submit" class="btn-solid">Submit</button>
+                    </form>
+                </div>
+                <h3>Your Reimbursement History (Current Month)</h3>
+                <div class="table-container">
+                    <table id="recordsTable">
                         <thead>
                             <tr>
                                 <th>Type</th>
+                                <th>ID</th>
+                                <th>Staff Name</th>
                                 <th>Date</th>
                                 <th>Description</th>
                                 <th>Amount</th>
                                 <th>Status</th>
-                                <th>View</th>
+                                <th>Attachment</th>
+                                <th>Invoice</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
                     </table>
                 </div>
-            </div>
-            
-            <div id="staff-pending-payment" class="mt-2">
-                <h3 class="mt-2">Pending Payment Requests</h3>
-                <div class="table-responsive">
-                    <table id="staffPendingPaymentTable" class="data-table">
+            </section>
+
+            <section id="payment" class="main-content-section is-hidden">
+                <h2>Payment Requests</h2>
+                <div class="form-container">
+                    <h3>Submit New Payment Request</h3>
+                    <form id="paymentForm" class="form-panel" enctype="multipart/form-data">
+                        <label>Date:</label><input type="date" name="date" required>
+                        <label>Purpose:</label><input type="text" name="purpose" required>
+                        <label>Amount ($):</label><input type="number" name="amount" step="0.01" required>
+                        <label>Attachment:</label><input type="file" name="proof" accept=".pdf,.jpg,.jpeg,.png" required>
+                        <button type="submit" class="btn-solid">Submit</button>
+                    </form>
+                </div>
+                <h3>Your Payment Request History (Current Month)</h3>
+                <div class="table-container">
+                    <table id="paymentsTable">
                         <thead>
                             <tr>
                                 <th>Type</th>
+                                <th>ID</th>
+                                <th>Staff Name</th>
                                 <th>Date</th>
-                                <th>Description</th>
+                                <th>Purpose</th>
                                 <th>Amount</th>
                                 <th>Status</th>
-                                <th>View</th>
+                                <th>Attachment</th>
+                                <th>Invoice</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
                     </table>
                 </div>
-            </div>
-        </div>
+            </section>
 
-        <div id="reimbursement" class="is-hidden">
-            <h2>Reimbursement Request</h2>
-            <div id="reimbursementForm" class="card" style="display:none;">
-                <form>
-                    <label for="r_date">Date:</label>
-                    <input type="date" name="date" id="r_date" required>
-                    <label for="r_description">Description:</label>
-                    <textarea name="description" id="r_description" rows="3" required></textarea>
-                    <label for="r_amount">Amount (USD):</label>
-                    <input type="number" name="amount" id="r_amount" step="0.01" required>
-                    <label for="r_proof">Proof/Receipt (Image/PDF):</label>
-                    <input type="file" name="proof" id="r_proof" accept="image/*, application/pdf" required>
-                    <input type="hidden" name="type" value="reimbursement">
-                    <button type="submit" class="btn-solid btn-block">Submit Reimbursement</button>
-                </form>
-            </div>
-            
-            <h3 class="mt-2">Current Reimbursements (For this month)</h3>
-            <div class="table-responsive">
-                <table id="recordsTable" class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Type</th><th>Staff Name</th><th>Date</th><th>Description</th><th>Amount</th><th>Status</th><th>View</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
+            <section id="history" class="main-content-section is-hidden">
+                <h2>Your Paid & Rejected History</h2>
+                <div class="tab-controls">
+                    <button class="tab-button active" onclick="showHistoryTable('reimbursement', this)">Reimbursement</button>
+                    <button class="tab-button" onclick="showHistoryTable('payment', this)">Payment Request</button>
+                </div>
+                <div id="history-reimbursement" class="table-panel">
+                    <h3>Reimbursement History</h3>
+                    <div class="table-container">
+                        <table id="historyReimbursementTable"> 
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>ID</th>
+                                    <th>Staff Name</th>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Attachment</th>
+                                    <th>Invoice</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="history-payment" class="table-panel is-hidden">
+                    <h3>Payment Request History</h3>
+                    <div class="table-container">
+                        <table id="historyPaymentTable"> 
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>ID</th>
+                                    <th>Staff Name</th>
+                                    <th>Date</th>
+                                    <th>Purpose</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Attachment</th>
+                                    <th>Invoice</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
 
-        <div id="payment" class="is-hidden">
-            <h2>Payment Request</h2>
-            <div id="paymentForm" class="card" style="display:none;">
-                <form>
-                    <label for="p_date">Date:</label>
-                    <input type="date" name="date" id="p_date" required>
-                    <label for="p_purpose">Purpose:</label>
-                    <textarea name="description" id="p_purpose" rows="3" required></textarea>
-                    <label for="p_amount">Amount (USD):</label>
-                    <input type="number" name="amount" id="p_amount" step="0.01" required>
-                    <label for="p_proof">Proof/Quotation (Image/PDF):</label>
-                    <input type="file" name="proof" id="p_proof" accept="image/*, application/pdf" required>
-                    <input type="hidden" name="type" value="payment">
-                    <button type="submit" class="btn-solid btn-block">Submit Payment Request</button>
-                </form>
-            </div>
-            <h3 class="mt-2">Current Payment Requests (For this month)</h3>
-            <div class="table-responsive">
-                <table id="paymentsTable" class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Type</th><th>Staff Name</th><th>Date</th><th>Purpose</th><th>Amount</th><th>Status</th><th>View</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
+            <section id="admin-review-main" class="main-content-section is-hidden">
+                <h2>Admin Review Requests</h2>
+                <div class="tab-controls">
+                    <button class="tab-button active" onclick="showAdminReviewTable('reimbursement')">Reimbursement</button>
+                    <button class="tab-button" onclick="showAdminReviewTable('payment')">Payment Request</button>
+                </div>
+                <div id="admin-reimbursement-panel" class="table-panel">
+                    <h3>Pending/Approved Reimbursement Requests</h3>
+                    <div class="table-container">
+                        <table id="adminReimbursementTable">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>ID</th>
+                                    <th>Staff Name</th>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Attachment</th>
+                                    <th>Invoice</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="admin-payment-panel" class="table-panel is-hidden">
+                    <h3>Pending/Approved Payment Requests</h3>
+                    <div class="table-container">
+                        <table id="adminPaymentTable">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>ID</th>
+                                    <th>Staff Name</th>
+                                    <th>Date</th>
+                                    <th>Purpose</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Attachment</th>
+                                    <th>Invoice</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
 
-        <div id="history" class="is-hidden">
-            <h2>My Request History (Rejected/Paid)</h2>
-            <div class="tabs">
-                <button class="tab-button active" onclick="showHistoryTable('reimbursement', this)">Reimbursement</button>
-                <button class="tab-button" onclick="showHistoryTable('payment', this)">Payment</button>
-            </div>
-            
-            <div id="history-reimbursement" class="tab-content card">
-                <h3>Reimbursement History</h3>
-                <div class="table-responsive">
-                    <table id="historyReimbursementTable" class="data-table">
+            <section id="record" class="main-content-section is-hidden">
+                <h2>Admin Paid Records (Archive)</h2>
+                <div class="tab-controls">
+                    <button class="tab-button active" onclick="showRecordTable('reimbursement', this)">Reimbursement</button>
+                    <button class="tab-button" onclick="showRecordTable('payment', this)">Payment Request</button>
+                </div>
+                <div id="record-reimbursement" class="table-panel">
+                    <h3>Paid Reimbursement Records</h3>
+                    <div class="table-container">
+                        <table id="recordReimbursementTable">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>ID</th>
+                                    <th>Staff Name</th>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                    <th>Paid Date</th>
+                                    <th>Attachment</th>
+                                    <th>Invoice</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="record-payment" class="table-panel is-hidden">
+                    <h3>Paid Payment Records</h3>
+                    <div class="table-container">
+                        <table id="recordPaymentTable">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>ID</th>
+                                    <th>Staff Name</th>
+                                    <th>Date</th>
+                                    <th>Purpose</th>
+                                    <th>Amount</th>
+                                    <th>Paid Date</th>
+                                    <th>Attachment</th>
+                                    <th>Invoice</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="admin" class="main-content-section is-hidden">
+                <h2>User Management</h2>
+                <div class="form-container">
+                    <h3>Create New User</h3>
+                    <form id="addUserForm" class="form-panel">
+                        <label>Username:</label><input type="text" id="new_username" name="username" required>
+                        <label>Password:</label><input type="password" id="new_password" name="password" required>
+                        <label>Role:</label>
+                        <select id="new_role" name="role" required>
+                            <option value="staff">Staff</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                        <button type="submit" class="btn-solid">Create User</button>
+                        <p id="createUserMessage" class="message"></p>
+                    </form>
+                </div>
+                <h3>Current Users</h3>
+                <div class="table-container">
+                    <table id="usersTable">
                         <thead>
                             <tr>
-                                <th>Type</th><th>Staff Name</th><th>Date</th><th>Description</th><th>Amount</th><th>Status</th><th>View</th> 
+                                <th>Username</th>
+                                <th>Role</th>
+                                <th>Created Date</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
                     </table>
                 </div>
-            </div>
+            </section>
+        </main>
+    </div>
 
-            <div id="history-payment" class="tab-content card is-hidden">
-                <h3>Payment History</h3>
-                <div class="table-responsive">
-                    <table id="historyPaymentTable" class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Type</th><th>Staff Name</th><th>Date</th><th>Description</th><th>Amount</th><th>Status</th><th>View</th> 
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div id="admin-review-main" class="is-hidden">
-            <h2>Admin Review Requests</h2>
-            <div class="tabs">
-                <button class="tab-button active" onclick="showAdminReviewTable('reimbursement', this)">Reimbursement</button>
-                <button class="tab-button" onclick="showAdminReviewTable('payment', this)">Payment</button>
-            </div>
-
-            <div id="admin-reimbursement-panel" class="tab-content card">
-                <h4>Reimbursement Requests</h4>
-                <div class="table-responsive">
-                    <table id="adminReimbursementTable" class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Type</th><th>Staff Name</th><th>Date</th><th>Description</th><th>Amount</th><th>Status</th><th>Attachment</th><th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div id="admin-payment-panel" class="tab-content card is-hidden">
-                <h4>Payment Requests</h4>
-                <div class="table-responsive">
-                    <table id="adminPaymentTable" class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Type</th><th>Staff Name</th><th>Date</th><th>Description</th><th>Amount</th><th>Status</th><th>Attachment</th><th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        
-        <div id="record" class="is-hidden">
-            <h2>Paid Records (Archive)</h2>
-
-            <div class="tabs">
-                <button class="tab-button active" onclick="showRecordTable('reimbursement', this)">Reimbursement</button>
-                <button class="tab-button" onclick="showRecordTable('payment', this)">Payment</button>
-            </div>
-
-            <div id="record-reimbursement" class="tab-content card">
-                <h4>Reimbursement Records (Paid)</h4>
-                <div class="table-responsive">
-                    <table id="recordReimbursementTable" class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Type</th><th>Staff Name</th><th>Date</th><th>Description</th><th>Amount</th><th>Paid Date</th><th>View</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div id="record-payment" class="tab-content card is-hidden">
-                <h4>Payment Records (Paid)</h4>
-                <div class="table-responsive">
-                    <table id="recordPaymentTable" class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Type</th><th>Staff Name</th><th>Date</th><th>Description</th><th>Amount</th><th>Paid Date</th><th>View</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div id="admin" class="is-hidden">
-            <h2>User Management</h2>
-            <div class="card">
-                <h3>Create New User</h3>
-                <form id="addUserForm">
-                    <label for="newUsername">Username:</label>
-                    <input type="text" id="newUsername" name="username" required>
-                    <label for="newPassword">Password:</label>
-                    <input type="password" id="newPassword" name="password" required>
-                    <label for="newUserRole">Role:</label>
-                    <select id="newUserRole" name="role" required>
-                        <option value="staff">Staff</option>
-                        <option value="admin">Admin</option>
-                    </select>
-                    <button type="submit" class="btn-solid">Create User</button>
-                    <p id="createUserMessage" class="error-message"></p>
-                </form>
-            </div>
-            
-            <div class="card mt-2">
-                <h3>Existing Users</h3>
-                <div class="table-responsive">
-                    <table id="usersTable" class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Username</th><th>Role</th><th>Created At</th><th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        
-    </div> 
-    
     <div id="proofModal" class="modal is-hidden">
-        <div class="modal-content card">
-            <h3>Request Details & Attachment</h3>
-            
-            <div id="modalDetails">
+        <div class="modal-content">
+            <div id="modalHeaderContent" class="modal-header-invoice">
+                <div class="invoice-logo-title">
+                    <img src="/static/logo-color.png" alt="Company Logo" class="logo-small-invoice">
+                    <h2 class="company-name-invoice">Dynamic Fusion Portal</h2>
                 </div>
-            
-            <hr>
-            <iframe id="proofFrame" src="" width="100%" height="500px" style="border: none; margin-top: 10px;"></iframe>
-            <button type="button" class="btn-solid" onclick="document.getElementById('proofModal').classList.add('is-hidden')">Close</button>
+                <h2 id="applicationTitle" class="application-title"></h2>
+            </div>
+            <div class="modal-body">
+                <div id="modalDetails" style="margin-bottom:20px;"></div>
+                <iframe id="proofFrame" style="width:100%;height:500px;border:1px solid #ccc;display:none;"></iframe>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="hideRequestDetailsModal()">Close</button>
+            </div>
         </div>
     </div>
-    
-    <footer class="site-footer">
-        <p>© 2025 Dynamic Fusion Portal. All rights reserved.</p>
-    </footer>
-    
+
     <script src="/static/script.js"></script>
 </body>
 </html>

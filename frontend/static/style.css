@@ -1,147 +1,346 @@
-style.css
 /* Base layout */
 html, body {
-  height: 100%;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  font-family: 'Segoe UI', sans-serif;
-  background: #f5f7fa;
-  color: #333;
+    height: 100%;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Segoe UI', sans-serif;
+    background: #f5f7fa;
+    color: #333;
 }
-.section {
-  flex: 1;
-  padding: 2rem;
-  max-width: 1000px;
-  margin: auto;
+/* Main Content Wrapper */
+.portal-container {
+    flex: 1; /* Allow content to grow */
+    display: flex;
+    flex-direction: column;
 }
-.card {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-  padding: 2rem;
-  margin-bottom: 2rem;
+.content {
+    flex: 1;
+    padding: 1rem 2rem;
+    max-width: 1200px; /* Max width for content */
+    width: 100%;
+    margin: 0 auto;
+}
+/* Section (Replaced .section with .main-content-section to match HTML) */
+.main-content-section {
+    padding: 2rem 0;
+    width: 100%;
+}
+.card, .form-panel, .panel {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    padding: 2rem;
+    margin-bottom: 2rem;
 }
 input, select {
-  width: 100%;
-  padding: 0.6rem;
-  margin: 0.5rem 0 1rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+    width: 100%;
+    padding: 0.6rem;
+    margin: 0.5rem 0 1rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
 }
-button, .btn-solid {
-  background-color: #2e7d32;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 0.6rem 1.2rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
+button, .btn-solid, .approve-btn {
+    background-color: #2e7d32;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.6rem 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
 }
-button:hover, .btn-solid:hover { background-color: #1b5e20; }
+button:hover, .btn-solid:hover, .approve-btn:hover { background-color: #1b5e20; }
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.6rem 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+.btn-secondary:hover { background-color: #5a6268; }
+
 .error-message { color: red; text-align: center; margin-top: 1rem; }
 
-/* Navbar */
+/* Status Labels */
+.status-pending { color: #ff9800; font-weight: bold; }
+.status-approved { color: #4caf50; font-weight: bold; }
+.status-paid { color: #2196f3; font-weight: bold; }
+.status-rejected { color: #f44336; font-weight: bold; }
+
+
+/* --- Navbar --- */
 .navbar {
-  display: flex; justify-content: space-between; align-items: center;
-  background: white; padding: 10px;
+    display: flex; justify-content: space-between; align-items: center;
+    background: white; padding: 10px 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 .navbar img { height: 50px; width: auto; }
-.logo { font-size: 1.2rem; font-weight: bold; color: #2e7d32; }
-.nav-overflow { position: relative; }
+.logo { font-size: 1.2rem; font-weight: bold; color: #2e7d32; display: flex; align-items: center; }
+.logo span { margin-left: 10px; }
+.nav-links { display: flex; gap: 10px; }
+.nav-divider { width: 1px; background-color: #ccc; margin: 0 10px; }
+
 .overflow-btn {
-  background: transparent; border: none; font-size: 1.6rem;
-  cursor: pointer; color: #2e7d32; padding: 0.25rem 0.5rem;
+    background: transparent; border: none; font-size: 1.6rem;
+    cursor: pointer; color: #2e7d32; padding: 0.25rem 0.5rem;
+    display: none; /* Hidden on desktop */
 }
 .overflow-menu {
-  position: absolute; right: 0; top: 110%; background: white;
-  border: 1px solid #ccc; border-radius: 8px;
-  box-shadow: 0 8px 16px rgba(42, 155, 32, 0.1);
-  display: none; flex-direction: column; min-width: 180px; z-index: 1000;
+    position: absolute; right: 0; top: 110%; background: white;
+    border: 1px solid #ccc; border-radius: 8px;
+    box-shadow: 0 8px 16px rgba(42, 155, 32, 0.1);
+    display: none; flex-direction: column; min-width: 180px; z-index: 1000;
 }
 .overflow-menu.is-open { display: flex; }
 .nav-btn {
-  background: none; border: none; padding: 0.6rem 1rem; text-align: left;
-  cursor: pointer; font-size: 1rem; color: #2e7d32;
+    background: none; border: none; padding: 0.6rem 1rem; text-align: left;
+    cursor: pointer; font-size: 1rem; color: #2e7d32;
 }
 .nav-btn:hover { background: rgba(46, 125, 50, 0.1); }
 
-/* Tables */
+/* --- Tab Controls and Table Panels --- */
+.tab-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+.tab-button {
+    background: #e0e0e0;
+    color: #333;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+.tab-button.active {
+    background: #2e7d32;
+    color: white;
+    font-weight: bold;
+}
+.table-panel {
+    margin-top: 15px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: white;
+}
+.table-container {
+    overflow-x: auto; /* Ensure tables are responsive */
+}
+
+/* --- Tables --- */
 table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
-th { background-color: #f0f0f0; }
+th, td { border: 1px solid #ccc; padding: 0.8rem; text-align: left; }
+th { background-color: #e8f5e9; color: #2e7d32; font-weight: bold; }
 .reject-btn {
-  background-color: #dc3545; color: #ffffff; border: none; border-radius: 6px;
-  padding: 0.4rem 0.8rem; font-size: 0.9rem; cursor: pointer;
-  transition: background-color 0.3s ease;
+    background-color: #dc3545; color: #ffffff; border: none; border-radius: 6px;
+    padding: 0.4rem 0.8rem; font-size: 0.9rem; cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-right: 5px;
 }
 .reject-btn:hover { background-color: #c82333; }
 .delete-btn {
-  background-color: #ff5722; color: #ffffff; border: none; border-radius: 6px;
-  padding: 0.4rem 0.8rem; font-size: 0.9rem; cursor: pointer;
-  transition: background-color 0.3s ease;
+    background-color: #ff5722; color: #ffffff; border: none; border-radius: 6px;
+    padding: 0.4rem 0.8rem; font-size: 0.9rem; cursor: pointer;
+    transition: background-color 0.3s ease;
 }
 .delete-btn:hover { background-color: #e64a19; }
 
-/* Welcome screen */
+/* --- Welcome screen --- */
 .welcome-screen {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: #f5f7fa; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; z-index: 2000;
-  overflow: hidden; opacity: 1;
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: #f5f7fa; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; z-index: 2000;
+    overflow: hidden; opacity: 1;
 }
 #logoBig {
-  width: 350px; position: absolute; top: 50%; left: 50%;
-  transform: translate(-50%, -150%) scale(0.5);
-  opacity: 0; z-index: 10;
+    width: 350px; position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -150%) scale(0.5);
+    opacity: 0; z-index: 10;
 }
 .logo-fly { animation: flyIn 1.5s ease forwards; }
 @keyframes flyIn {
-  0% { transform: translate(-50%, -150%) scale(0.5); opacity: 0; }
-  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    0% { transform: translate(-50%, -150%) scale(0.5); opacity: 0; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
 }
 #companyName, #welcomeText {
-  color: #2e7d32; font-family: serif; white-space: nowrap;
-  overflow: hidden; border-right: 2px solid transparent;
-  opacity: 1; max-width: 90vw; text-align: center;
+    position: relative;
+    z-index: 20; 
+    color: #2e7d32; font-family: serif; white-space: nowrap;
+    overflow: hidden; border-right: 2px solid transparent;
+    opacity: 1; max-width: 90vw; text-align: center;
 }
 .typing {
-  border-right-color: #2e7d32;
-  animation: typing 2.8s steps(30, end), blink 0.8s step-end infinite;
+    border-right-color: #2e7d32;
+    animation: typing 2.8s steps(30, end), blink 0.8s step-end infinite;
 }
 @keyframes typing { from { width: 0 } to { width: 100% } }
 @keyframes blink { 50% { border-color: transparent } }
 .welcome-screen.fade-out {
-  opacity: 0; transition: opacity 1s ease; pointer-events: none;
+    opacity: 0; transition: opacity 1s ease; pointer-events: none;
 }
-.is-hidden { display: none !important; }
-
-/* Footer sticky */
-.site-footer {
-  background: #c8e6c9; color: #2e7d32; text-align: center;
-  padding: 1rem; border-top: 1px solid #a5d6a7; width: 100%;
-  margin-top: auto;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .navbar img { height: 40px; }
-  .logo { font-size: 1rem; }
-  .overflow-menu { min-width: 100%; }
-  table { font-size: 0.8rem; display: block; overflow-x: auto; }
-  .card { padding: 1rem; }
-}
-#companyName, #welcomeText {
-  position: relative;
-  z-index: 20; /* higher than logoBig */
-  color: #2e7d32;
-  font-family: serif;
-  text-align: center;
-}
-/* Logo fade-out effect */
 .logo-hide {
-  opacity: 0;
-  visibility: hidden;   /* ensures it disappears and doesn't block text */
-  transition: opacity 1s ease;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 1s ease;
+}
+
+/* --- Home Section Styles --- */
+.notification-box {
+    padding: 15px;
+    border-radius: 8px;
+    background-color: #fff3e0;
+    border-left: 5px solid #ff9800;
+    margin-bottom: 20px;
+}
+.notification-box ul {
+    list-style-type: disc;
+    margin-left: 20px;
+    padding-left: 0;
+}
+
+/* --- Footer sticky --- */
+.site-footer {
+    background: #c8e6c9; color: #2e7d32; text-align: center;
+    padding: 1rem; border-top: 1px solid #a5d6a7; width: 100%;
+    margin-top: auto;
+}
+
+/* --- Utilities --- */
+.is-hidden { 
+    display: none !important; 
+}
+
+/* ---------------------------------------------------- */
+/* 🟢 Modal Styles (For Proof Details) */
+/* ---------------------------------------------------- */
+
+/* Modal Backdrop - Full screen overlay */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.7);
+    /* For centering */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Modal Content - The actual box */
+.modal-content {
+    background-color: #fefefe;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 800px;
+    animation-name: animatetop;
+    animation-duration: 0.4s;
+}
+
+/* Animation */
+@keyframes animatetop {
+    from {transform: translateY(-50px); opacity: 0}
+    to {transform: translateY(0); opacity: 1}
+}
+
+/* Close button style */
+.close-btn {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    line-height: 20px;
+    margin-left: 10px;
+}
+
+.close-btn:hover,
+.close-btn:focus {
+    color: #333;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+/* Modal Header and Body */
+.modal-header {
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #2e7d32;
+}
+
+/* Details Grid inside Modal */
+.modal-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+.modal-info-grid p {
+    margin: 0;
+    padding: 5px 0;
+}
+.modal-info-grid strong {
+    font-weight: 600;
+    color: #555;
+}
+
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+    .navbar img { height: 40px; }
+    .logo { font-size: 1rem; }
+    .nav-links { display: none; } /* Hide desktop links */
+    .overflow-btn { display: block; } /* Show hamburger button */
+    .content { padding: 0.5rem 1rem; }
+    .main-content-section { padding: 1rem 0; }
+    
+    /* Ensure tables are still scrollable on mobile */
+    table { font-size: 0.75rem; }
+    .table-container, .table-panel { 
+        overflow-x: auto;
+        white-space: nowrap; 
+    }
+    
+    .card, .form-panel, .panel { padding: 1rem; }
+    .modal-content { width: 95%; max-width: none; }
+    .modal-info-grid { grid-template-columns: 1fr; }
+}
+/* Invoice Modal Logo */
+.logo-small-invoice {
+    height: 40px;   /* កំណត់ទំហំដូច navbar logo */
+    width: auto;    /* រក្សា aspect ratio */
+    margin-right: 10px; /* ចន្លោះពី text */
+    vertical-align: middle;
+}
+.company-name-invoice {
+    font-size: 1.2rem; /* កំណត់អក្សរមិនធំពេក */
+    color: #2e7d32;
+    margin: 0;
+}
+.invoice-logo-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
