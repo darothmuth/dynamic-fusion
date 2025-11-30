@@ -73,35 +73,81 @@ button:hover, .btn-solid:hover, .approve-btn:hover { background-color: #1b5e20; 
 .status-rejected { color: #f44336; font-weight: bold; }
 
 
-/* --- Navbar --- */
+/* Navbar */
 .navbar {
-    display: flex; justify-content: space-between; align-items: center;
-    background: white; padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 10px 20px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-.navbar img { height: 50px; width: auto; }
-.logo { font-size: 1.2rem; font-weight: bold; color: #2e7d32; display: flex; align-items: center; }
-.logo span { margin-left: 10px; }
-.nav-links { display: flex; gap: 10px; }
-.nav-divider { width: 1px; background-color: #ccc; margin: 0 10px; }
-
-.overflow-btn {
-    background: transparent; border: none; font-size: 1.6rem;
-    cursor: pointer; color: #2e7d32; padding: 0.25rem 0.5rem;
-    display: none; /* Hidden on desktop */
-}
-.overflow-menu {
-    position: absolute; right: 0; top: 110%; background: white;
-    border: 1px solid #ccc; border-radius: 8px;
-    box-shadow: 0 8px 16px rgba(42, 155, 32, 0.1);
-    display: none; flex-direction: column; min-width: 180px; z-index: 1000;
-}
-.overflow-menu.is-open { display: flex; }
-.nav-btn {
-    background: none; border: none; padding: 0.6rem 1rem; text-align: left;
-    cursor: pointer; font-size: 1rem; color: #2e7d32;
-}
-.nav-btn:hover { background: rgba(46, 125, 50, 0.1); }
+    position: relative;
+  }
+  
+  .navbar img {
+    height: 50px;
+    width: auto;
+  }
+  
+  .logo {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #2e7d32;
+    display: flex;
+    align-items: center;
+  }
+  
+  .logo span {
+    margin-left: 10px;
+  }
+  
+  /* Menu toggle button */
+  .menu-toggle {
+    background: #2e7d32;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.6rem 1rem;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  
+  /* Dropdown menu */
+  .dropdown-menu {
+    position: absolute;
+    right: 20px;
+    top: 60px;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 10px;
+    z-index: 1000;
+  }
+  
+  .dropdown-menu.is-hidden {
+    display: none;
+  }
+  
+  .dropdown-menu .nav-btn,
+  .dropdown-menu .btn-secondary {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 0.6rem 1rem;
+    font-size: 1rem;
+    color: #2e7d32;
+    cursor: pointer;
+  }
+  
+  .dropdown-menu .nav-btn:hover,
+  .dropdown-menu .btn-secondary:hover {
+    background: rgba(46, 125, 50, 0.1);
+  }
 
 /* --- Tab Controls and Table Panels --- */
 .tab-controls {

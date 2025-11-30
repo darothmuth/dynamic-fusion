@@ -152,7 +152,28 @@ function setStaffHomeUI() {
     document.getElementById("staff-pending-payment").style.display = 'block';
     document.getElementById("admin-pending-review").style.display = 'none';
 }
-
+// Toggle dropdown menu
+document.querySelector(".menu-toggle").addEventListener("click", () => {
+    document.getElementById("mainMenu").classList.toggle("is-hidden");
+  });
+  
+  // Close menu when clicking outside
+  document.addEventListener("click", (e) => {
+    const menu = document.getElementById("mainMenu");
+    const toggle = document.querySelector(".menu-toggle");
+    if (!menu.contains(e.target) && e.target !== toggle) {
+      menu.classList.add("is-hidden");
+    }
+  });
+  
+  // Existing nav-btn logic
+  document.querySelectorAll(".nav-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const target = btn.getAttribute("data-target");
+      showSection(target);
+      document.getElementById("mainMenu").classList.add("is-hidden");
+    });
+  });
 // ---------- Login / Logout ----------
 document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();

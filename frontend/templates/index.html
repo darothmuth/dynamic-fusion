@@ -18,21 +18,25 @@
     <div class="portal-container">
         <nav class="navbar">
             <div class="logo">
-                <img src="/static/logo-color.png" alt="Logo">
-                <span>Dynamic Fusion Portal</span>
+              <img src="/static/logo-color.png" alt="Logo">
+              <span>Dynamic Fusion Portal</span>
             </div>
-            <div class="nav-links">
-                <button class="nav-btn" data-target="home">Home</button>
-                <button class="nav-btn" data-target="reimbursement" id="reimbursementBtn" style="display:none;">Reimbursement</button>
-                <button class="nav-btn" data-target="payment" id="paymentBtn" style="display:none;">Payment Request</button>
-                <button class="nav-btn" data-target="history" id="historyMenuBtn" style="display:none;">History</button>
-                <div class="nav-divider" id="adminDivider" style="display:none;"></div>
-                <button class="nav-btn" data-target="admin-review-main" id="adminReviewBtn" style="display:none;">Review Requests</button>
-                <button class="nav-btn" data-target="record" id="recordMenuBtn" style="display:none;">Paid Records</button>
-                <button class="nav-btn" data-target="admin" id="adminMenuBtn" style="display:none;">User Management</button>
-                <button class="btn-secondary" id="logoutBtn" style="display:none;">Logout</button>
+          
+            <!-- Menu toggle button -->
+            <button class="menu-toggle">☰ Menu</button>
+          
+            <!-- Dropdown menu -->
+            <div class="dropdown-menu is-hidden" id="mainMenu">
+              <button class="nav-btn" data-target="home">Home</button>
+              <button class="nav-btn" data-target="history" id="historyMenuBtn">History</button>
+              <button class="nav-btn" data-target="admin-review-main" id="adminReviewBtn">Review Requests</button>
+              <button class="nav-btn" data-target="record" id="recordMenuBtn">Paid Records</button>
+              <button class="nav-btn" data-target="admin" id="adminMenuBtn">User Management</button>
+              <button class="nav-btn" data-target="reimbursement" id="reimbursementBtn">Reimbursement</button>
+              <button class="nav-btn" data-target="payment" id="paymentBtn">Payment Request</button>
+              <button class="btn-secondary" id="logoutBtn">Logout</button>
             </div>
-        </nav>
+          </nav>
 
         <main class="content">
             <section id="login-form-section" class="main-content-section is-hidden">
