@@ -4,7 +4,6 @@ function delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 // ---------- State ----------
 let token = null;
 let currentRole = null;
-let currentActiveSection = 'login-form-section'; // តាមដាន Section ដែលកំពុងបើក
 
 // ---------- Welcome Animation ----------
 async function runWelcomeSequence() {
@@ -12,10 +11,6 @@ async function runWelcomeSequence() {
     const welcomeText = document.getElementById("welcomeText");
     const logoBig = document.getElementById("logoBig");
     const welcomeScreen = document.getElementById("welcome-screen");
-
-    // ត្រូវតែបង្ហាញ Menu Toggle ត្រឹមត្រូវនៅពេលចូល Login Screen
-    updateNavVisibility(null); 
-    
     logoBig.style.display = 'block';
     logoBig.classList.add("logo-fly");
     await delay(2000);
@@ -30,67 +25,20 @@ async function runWelcomeSequence() {
     welcomeScreen.classList.add("fade-out");
     setTimeout(() => {
         welcomeScreen.classList.add("is-hidden");
-        // ប្តូរទៅ Login Form
-        switchToSection("login-form-section");
+        showSection("login-form-section");
     }, 1000);
 }
 
-// 🟢 NEW: Core Navigation Function (ជំនួស showSection ចាស់) 🟢
-/**
- * ផ្លាស់ប្តូរការបង្ហាញ Sections នៅក្នុង Single Page Application (SPA)
- * @param {string} targetId - ID របស់ Section ដែលត្រូវបង្ហាញ
- */
-function switchToSection(targetId) {
-    // 1. លាក់ Sections ទាំងអស់
-    document.querySelectorAll('.main-content-section').forEach(section => {
-        section.classList.add('is-hidden');
+// ---------- Helpers ----------
+function showSection(id) {
+    [
+        "login-form-section", "home", "reimbursement", "payment", "admin",
+        "admin-review-main", "history", "record"
+    ].forEach(sec => {
+        const el = document.getElementById(sec);
+        if (el) el.classList.toggle("is-hidden", sec !== id);
     });
-
-    // 2. បង្ហាញ Section គោលដៅ
-    const targetSection = document.getElementById(targetId);
-    if (targetSection) {
-        targetSection.classList.remove('is-hidden');
-        currentActiveSection = targetId;
-
-        // 3. ដំណើរការ Logic របស់ Section នោះ (ជំនួស Logic ដែលធ្លាប់នៅក្នុង .nav-btn listener)
-        if (!token) { /* គ្មានសកម្មភាព */ return; }
-        
-        if (targetId === "home") {
-            if (currentRole === 'admin') { setAdminHomeUI(); loadPendingRequestsSummary(); }
-            else { setStaffHomeUI(); loadStaffPendingRequests(); }
-        }
-        else if (targetId === "reimbursement") {
-            document.getElementById("reimbursementForm").style.display = (token && currentRole === 'staff') ? "block" : "none";
-            if (token && currentRole === 'staff') loadMyRequests();
-        }
-        else if (targetId === "payment") {
-            document.getElementById("paymentForm").style.display = (token && currentRole === 'staff') ? "block" : "none";
-            if (token && currentRole === 'staff') loadMyPaymentRequests();
-        }
-        else if (targetId === "admin") {
-            if (currentRole !== "admin") return;
-            loadAdminUsers();
-        }
-        else if (targetId === "admin-review-main") {
-            if (currentRole !== "admin") return;
-            // ត្រូវប្រាកដថា Tab ទីមួយត្រូវបានផ្ទុក
-            showAdminReviewTable('reimbursement');
-        }
-        else if (targetId === "history") {
-            loadHistoryRequests(); 
-            // ត្រូវប្រាកដថា tab-button.active ត្រូវបាន set ត្រឹមត្រូវ 
-            showHistoryTable('reimbursement', document.querySelector('#history .tab-button.active'));
-        }
-        else if (targetId === "record") {
-            if (currentRole !== "admin") return;
-            loadRecordRequests(); 
-            // ត្រូវប្រាកដថា tab-button.active ត្រូវបាន set ត្រឹមត្រូវ 
-            showRecordTable('reimbursement', document.querySelector('#record .tab-button.active'));
-        }
-    }
 }
-// 🟢 End Core Navigation Function 🟢
-
 function authHeaders() { return token ? { "Authorization": `Bearer ${token}` } : {}; }
 function handleUnauthorized(res) { if (res.status === 401) { logout(); return true; } return false; }
 
@@ -152,44 +100,46 @@ function escapeHTML(str) {
     }[s]));
 }
 
-// 🟢 NEW: Function សម្រាប់គ្រប់គ្រងការបង្ហាញ Menu តាមតួនាទី (ប្រើក្នុងការ Login/Logout) 🟢
-function updateNavVisibility(role) {
-    const isStaff = role === 'staff';
-    const isAdmin = role === 'admin';
-    const isLoggedIn = isStaff || isAdmin;
-
-    // --- Desktop Menu Visibility ---
-    document.getElementById('reimbursementBtn').style.display = isStaff ? 'block' : 'none';
-    document.getElementById('paymentBtn').style.display = isStaff ? 'block' : 'none';
-    document.getElementById('historyMenuBtn').style.display = isStaff ? 'block' : 'none';
-
-    document.getElementById('adminDivider').style.display = isAdmin ? 'block' : 'none';
-    document.getElementById('adminReviewBtn').style.display = isAdmin ? 'block' : 'none';
-    document.getElementById('recordMenuBtn').style.display = isAdmin ? 'block' : 'none';
-    document.getElementById('adminMenuBtn').style.display = isAdmin ? 'block' : 'none';
-
-    document.getElementById('logoutBtn').style.display = isLoggedIn ? 'block' : 'none';
-    
-    // --- Mobile Menu Toggle Visibility ---
-    document.getElementById('menuToggleBtn').style.display = isLoggedIn ? 'block' : 'none';
-
-    // --- Home Section Content Visibility ---
-    document.getElementById('admin-pending-review').style.display = isAdmin ? 'block' : 'none';
-    document.getElementById('staff-pending-reimbursement').style.display = isStaff ? 'block' : 'none';
-    document.getElementById('staff-pending-payment').style.display = isStaff ? 'block' : 'none';
-    
-    // បិទ Mobile Menu វិញ នៅពេល Role ផ្លាស់ប្តូរ (សំខាន់!)
-    document.getElementById('mobileMenu').classList.remove('is-open');
-}
-// 🟢 End updateNavVisibility 🟢
-
-
-// 🟢 REMOVED: document.querySelectorAll(".nav-btn") listener ត្រូវបានបំបែកទៅជា:
-// 1. switchToSection(targetId) function
-// 2. setupEventListeners (ខាងក្រោម)
-// 🟢
-
-
+// ---------- Navbar UI ----------
+document.querySelectorAll(".nav-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+        const target = btn.getAttribute("data-target");
+        if (!token) { showSection("login-form-section"); return; }
+        if (target === "home") {
+            showSection("home");
+            if (currentRole === 'admin') { setAdminHomeUI(); loadPendingRequestsSummary(); }
+            else { setStaffHomeUI(); loadStaffPendingRequests(); }
+        }
+        else if (target === "reimbursement") {
+            showSection("reimbursement");
+            document.getElementById("reimbursementForm").style.display = (token && currentRole === 'staff') ? "block" : "none";
+            if (token && currentRole === 'staff') loadMyRequests();
+        }
+        else if (target === "payment") {
+            showSection("payment");
+            document.getElementById("paymentForm").style.display = (token && currentRole === 'staff') ? "block" : "none";
+            if (token && currentRole === 'staff') loadMyPaymentRequests();
+        }
+        else if (target === "admin") {
+            if (currentRole !== "admin") return;
+            showSection("admin"); loadAdminUsers();
+        }
+        else if (target === "admin-review-main") {
+            if (currentRole !== "admin") return;
+            showSection("admin-review-main");
+            showAdminReviewTable('reimbursement');
+        }
+        else if (target === "history") {
+            showSection("history");
+            loadHistoryRequests(); showHistoryTable('reimbursement', document.querySelector('#history .tab-button.active'));
+        }
+        else if (target === "record") {
+            if (currentRole !== "admin") return;
+            showSection("record");
+            loadRecordRequests(); showRecordTable('reimbursement', document.querySelector('#record .tab-button.active'));
+        }
+    });
+});
 function setAdminHomeUI() {
     document.getElementById("home-title").textContent = "Admin Pending Review Summary";
     document.getElementById("staff-pending-reimbursement").style.display = 'none';
@@ -221,28 +171,30 @@ document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
         try { payload = JSON.parse(atob(token.split(".")[1])); }
         catch { msg.textContent = "Invalid token."; return; }
         currentRole = payload.role;
-        
-        // 🟢 NEW: ប្រើ updateNavVisibility ជំនួស Logic បង្ហាញ Menu ចាស់
-        updateNavVisibility(currentRole);
-        // 🟢
-        
-        switchToSection("home");
-        
+        document.getElementById("login-form-section").classList.add("is-hidden");
+        document.getElementById("logoutBtn").style.display = "inline-block";
+        document.getElementById("historyMenuBtn").style.display = "inline-block";
+        const isAdmin = currentRole === "admin";
+        document.getElementById("adminMenuBtn").style.display = isAdmin ? "inline-block" : "none";
+        document.getElementById("recordMenuBtn").style.display = isAdmin ? "inline-block" : "none";
+        document.getElementById("adminReviewBtn").style.display = isAdmin ? "inline-block" : "none";
+        document.getElementById("reimbursementBtn").style.display = isAdmin ? "none" : "inline-block";
+        document.getElementById("paymentBtn").style.display = isAdmin ? "none" : "inline-block";
+        document.getElementById("adminDivider").style.display = isAdmin ? "block" : "none";
+        showSection("home");
+        if (isAdmin) { setAdminHomeUI(); loadPendingRequestsSummary(); }
+        else { setStaffHomeUI(); loadStaffPendingRequests(); }
     } catch { msg.textContent = "Login failed."; }
 });
-
-// 🟢 NEW: Add Event Listener for Logout Button 🟢
 document.getElementById("logoutBtn")?.addEventListener("click", logout);
-// 🟢
-
 function logout() {
     token = null; currentRole = null;
-    
-    // 🟢 NEW: ប្រើ updateNavVisibility ជំនួស Logic លាក់ Menu ចាស់
-    updateNavVisibility(null);
-    // 🟢
-    
-    switchToSection("login-form-section");
+    ["logoutBtn","adminMenuBtn","recordMenuBtn","adminReviewBtn","historyMenuBtn","reimbursementBtn","paymentBtn"].forEach(id => {
+        const el = document.getElementById(id); if (el) el.style.display = "none";
+    });
+    document.getElementById("adminDivider").style.display = "none";
+    document.getElementById("admin-pending-review").style.display = "none";
+    showSection("login-form-section");
     document.getElementById("reimbursementForm").style.display = "none";
     document.getElementById("paymentForm").style.display = "none";
     document.querySelectorAll("tbody").forEach(el => el.innerHTML = "");
@@ -700,79 +652,5 @@ document.getElementById("addUserForm")?.addEventListener("submit", async (e)=>{
     }
 });
 
-// 🟢 NEW: Setup Mobile Menu Logic 🟢
-function setupMobileMenu() {
-    const menuToggleBtn = document.getElementById('menuToggleBtn');
-    const mobileMenu = document.getElementById('mobileMenu');
-    const desktopNavLinks = document.getElementById('desktopNavLinks');
-
-    menuToggleBtn.addEventListener('click', (e) => {
-        e.stopPropagation(); 
-        mobileMenu.classList.toggle('is-open');
-
-        // កសាង Menu ឡើងវិញរាល់ពេលបើក ដើម្បីធានាថាវា Update តាម Role ថ្មី
-        if (mobileMenu.classList.contains('is-open')) {
-            
-            mobileMenu.innerHTML = ''; // សម្អាត Menu ចាស់
-            
-            const links = Array.from(desktopNavLinks.children);
-            
-            links.forEach(link => {
-                // យកតែ buttons ដែលត្រូវបានបង្ហាញសម្រាប់តួនាទីបច្ចុប្បន្ន
-                // និងមិនមែនជា nav-divider
-                if (link.tagName === 'BUTTON' && link.style.display !== 'none') {
-                    const clone = link.cloneNode(true);
-                    
-                    clone.style.display = 'block'; 
-                    clone.classList.remove('btn-secondary'); 
-                    clone.classList.add('nav-btn'); 
-
-                    clone.addEventListener('click', () => {
-                        const targetId = clone.dataset.target;
-                        if (targetId) {
-                            switchToSection(targetId);
-                        }
-                        // បិទ menu បន្ទាប់ពីចុច
-                        mobileMenu.classList.remove('is-open');
-                    });
-
-                    mobileMenu.appendChild(clone);
-                }
-            });
-        }
-    });
-
-    // បិទ menu នៅពេលចុចក្រៅ menu
-    document.addEventListener('click', (e) => {
-        if (!mobileMenu.contains(e.target) && e.target !== menuToggleBtn) {
-            mobileMenu.classList.remove('is-open');
-        }
-    });
-}
-
-// 🟢 NEW: Setup Desktop Navigation Logic 🟢
-function setupEventListeners() {
-    // --- Desktop Navigation Listener (for nav-links) ---
-    document.querySelectorAll('.nav-links .nav-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const targetId = e.target.dataset.target;
-            if (targetId) {
-                switchToSection(targetId);
-            }
-        });
-    });
-    // --- Logout is already handled above in the global scope listener ---
-}
-
-
 // ---------- Initialize ----------
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. កំណត់រចនាសម្ព័ន្ធ Menu របស់ទូរស័ព្ទ
-    setupMobileMenu();
-
-    // 2. កំណត់រចនាសម្ព័ន្ធ Event Listeners
-    setupEventListeners();
-    
-    // 3. ចាប់ផ្តើម Animation នៃការស្វាគមន៍
-    runWelcomeSequence();
-});
+document.addEventListener('DOMContentLoaded', runWelcomeSequence);

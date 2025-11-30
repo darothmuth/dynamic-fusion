@@ -101,7 +101,7 @@ button:hover, .btn-solid:hover, .approve-btn:hover { background-color: #1b5e20; 
 .overflow-btn {
     background: transparent; border: none; font-size: 1.6rem;
     cursor: pointer; color: #2e7d32; padding: 0.25rem 0.5rem;
-    display: none; /* លាក់លើ Desktop (នឹងត្រូវបានកែប្រែក្នុង media query) */
+    display: none; /* លាក់លើ Desktop */
 }
 .overflow-menu {
     position: absolute; right: 0; top: 110%; background: white;
@@ -375,21 +375,6 @@ th { background-color: #e8f5e9; color: #2e7d32; font-weight: bold; }
         grid-template-columns: 1fr; /* ដាក់ជួរឈរតែមួយលើទូរស័ព្ទ */
     }
 }
-
-
-/* 🟢 NEW: លាក់ Mobile Overflow Menu នៅលើ Desktop (ការកែសម្រួលដើម្បីដោះស្រាយបញ្ហា) 🟢 */
-/* សម្រាប់ទទឹងអេក្រង់ធំជាង 480px (Desktop/Tablet) */
-@media (min-width: 481px) {
-    /* ត្រូវប្រាកដថា Mobile Menu ត្រូវបានលាក់ជានិច្ចនៅពេលមិនមែន Mobile */
-    .overflow-menu {
-        display: none !important; 
-    }
-    /* ត្រូវប្រាកដថា Hamburger Button ក៏លាក់ដែរ */
-    .overflow-btn {
-        display: none !important;
-    }
-}
-/* 🟢 បញ្ចប់ការកែសម្រួលបន្ថែម 🟢 */
 
 
 .company-name-invoice {
