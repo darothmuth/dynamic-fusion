@@ -21,8 +21,7 @@
                 <img src="/static/logo-color.png" alt="Logo">
                 <span>Dynamic Fusion Portal</span>
             </div>
-            
-            <div class="nav-links" id="desktopNavLinks">
+            <div class="nav-links">
                 <button class="nav-btn" data-target="home">Home</button>
                 <button class="nav-btn" data-target="reimbursement" id="reimbursementBtn" style="display:none;">Reimbursement</button>
                 <button class="nav-btn" data-target="payment" id="paymentBtn" style="display:none;">Payment Request</button>
@@ -32,19 +31,9 @@
                 <button class="nav-btn" data-target="record" id="recordMenuBtn" style="display:none;">Paid Records</button>
                 <button class="nav-btn" data-target="admin" id="adminMenuBtn" style="display:none;">User Management</button>
                 <button class="btn-secondary" id="logoutBtn" style="display:none;">Logout</button>
-                <button class="overflow-btn" id="menuToggleBtn" style="display:none;">
-                    ☰
-                </button>
-            </div>
-
-            <div style="position: relative;">
-                <button class="overflow-btn" id="menuToggleBtn" style="display:none;">
-                    ☰
-                </button>
-                <div class="overflow-menu" id="mobileMenu">
-                    </div>
             </div>
         </nav>
+
         <main class="content">
             <section id="login-form-section" class="main-content-section is-hidden">
                 <h2>Portal Login</h2>
@@ -373,7 +362,7 @@
             </div>
             <div class="modal-body">
                 <div id="modalDetails" style="margin-bottom:20px;"></div>
-                <iframe id="proofFrame" style="display:none;"></iframe>
+                <iframe id="proofFrame" style="width:100%;height:500px;border:1px solid #ccc;display:none;"></iframe>
             </div>
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="hideRequestDetailsModal()">Close</button>
