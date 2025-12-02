@@ -373,6 +373,7 @@ async function loadAdminRequests(type){
 
 function renderAdminReviewRow(r,type) {
     const row = document.createElement('tr');
+    // FIX HERE: use <a> for attachment!
     row.innerHTML = `
         <td>${escapeHTML(r.type)}</td>
         <td>${escapeHTML(r.request_id||'N/A')}</td>
@@ -381,7 +382,7 @@ function renderAdminReviewRow(r,type) {
         <td>${escapeHTML(r.description||r.purpose)}</td>
         <td>$${escapeHTML(r.amount)}</td>
         <td>${statusBadge(r)}</td>
-        <td>${r.proof_filename?`<button type="button" class="btn-solid view-proof-btn" data-record='${encodeURIComponent(JSON.stringify(r))}'>View</button>`:'N/A'}</td>
+        <td>${r.proof_filename?`<a href="${proofLink(r)}" target="_blank" rel="noopener" class="btn-solid">View</a>`:'N/A'}</td>
         <td><button type="button" class="btn-solid view-invoice-btn" data-record='${encodeURIComponent(JSON.stringify(r))}'>View Invoice</button></td>
         <td>${reviewActionButtons(r,type)}</td>
     `;
@@ -404,14 +405,7 @@ document.addEventListener("click", function(e){
     if(e.target.classList.contains('reject-btn')) updateStatus(e.target.getAttribute("data-id"),"Rejected",e.target.getAttribute("data-type"));
     if(e.target.classList.contains('paid-btn')) updateStatus(e.target.getAttribute("data-id"),"Paid",e.target.getAttribute("data-type"));
 
-    // View Proof: open directly in new tab for all devices
-    if(e.target.classList.contains('view-proof-btn')){
-        const rec = JSON.parse(decodeURIComponent(e.target.getAttribute('data-record')));
-        if (rec.proof_filename) {
-            window.open(proofLink(rec), '_blank');
-        }
-    }
-    // View Invoice: modal
+    // View Invoice (modal)
     if(e.target.classList.contains('view-invoice-btn')){
         const rec = JSON.parse(decodeURIComponent(e.target.getAttribute('data-record')));
         showRequestDetailsModal(rec);
@@ -477,6 +471,7 @@ async function loadHistoryRequestsTab(type){
 
 function renderRow(r,type){
     const row=document.createElement('tr');
+    // FIX HERE for attachment: <a> direct link
     row.innerHTML=`
         <td>${escapeHTML(r.type)}</td>
         <td>${escapeHTML(r.request_id||'N/A')}</td>
@@ -485,7 +480,7 @@ function renderRow(r,type){
         <td>${escapeHTML(type==="reimbursement"?r.description:r.purpose||r.description)}</td>
         <td>$${escapeHTML(r.amount)}</td>
         <td>${statusBadge(r)}</td>
-        <td>${r.proof_filename?`<button type="button" class="btn-solid view-proof-btn" data-record='${encodeURIComponent(JSON.stringify(r))}'>View</button>`:'N/A'}</td>
+        <td>${r.proof_filename?`<a href="${proofLink(r)}" target="_blank" rel="noopener" class="btn-solid">View</a>`:'N/A'}</td>
         <td><button type="button" class="btn-solid view-invoice-btn" data-record='${encodeURIComponent(JSON.stringify(r))}'>View Invoice</button></td>
     `
     return row;
@@ -517,6 +512,7 @@ async function loadRecordRequestsTab(type){
         if(!filtered.length){tbody.innerHTML=`<tr><td colspan='9'>No paid ${type} records found.</td></tr>`;return;}
         filtered.forEach(r=>{
             const row=document.createElement('tr');
+            // FIX for paid record attachment link
             row.innerHTML=`
                 <td>${escapeHTML(r.type)}</td>
                 <td>${escapeHTML(r.request_id||'N/A')}</td>
@@ -525,7 +521,7 @@ async function loadRecordRequestsTab(type){
                 <td>${escapeHTML(type==="reimbursement"?r.description:r.purpose||r.description)}</td>
                 <td>$${escapeHTML(r.amount)}</td>
                 <td>${formatDate(r.paid_date)}</td>
-                <td>${r.proof_filename?`<button type="button" class="btn-solid view-proof-btn" data-record='${encodeURIComponent(JSON.stringify(r))}'>View</button>`:'N/A'}</td>
+                <td>${r.proof_filename?`<a href="${proofLink(r)}" target="_blank" rel="noopener" class="btn-solid">View</a>`:'N/A'}</td>
                 <td><button type="button" class="btn-solid view-invoice-btn" data-record='${encodeURIComponent(JSON.stringify(r))}'>View Invoice</button></td>
             `
             tbody.appendChild(row);

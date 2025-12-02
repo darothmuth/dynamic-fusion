@@ -18,27 +18,24 @@
     <div class="portal-container">
         <nav class="navbar">
             <div class="logo">
-              <img src="/static/logo-color.png" alt="Logo">
-              <span>Dynamic Fusion Portal</span>
+                <img src="/static/logo-color.png" alt="Logo">
+                <span>Dynamic Fusion Portal</span>
             </div>
-          
-            <!-- Menu toggle button -->
             <button class="menu-toggle">☰ Menu</button>
-          
-            <!-- Dropdown menu -->
             <div class="dropdown-menu is-hidden" id="mainMenu">
-              <button class="nav-btn" data-target="home">Home</button>
-              <button class="nav-btn" data-target="history" id="historyMenuBtn">History</button>
-              <button class="nav-btn" data-target="admin-review-main" id="adminReviewBtn">Review Requests</button>
-              <button class="nav-btn" data-target="record" id="recordMenuBtn">Paid Records</button>
-              <button class="nav-btn" data-target="admin" id="adminMenuBtn">User Management</button>
-              <button class="nav-btn" data-target="reimbursement" id="reimbursementBtn">Reimbursement</button>
-              <button class="nav-btn" data-target="payment" id="paymentBtn">Payment Request</button>
-              <button class="btn-secondary" id="logoutBtn">Logout</button>
+                <button class="nav-btn" data-target="home">Home</button>
+                <button class="nav-btn" data-target="history" id="historyMenuBtn">History</button>
+                <button class="nav-btn" data-target="admin-review-main" id="adminReviewBtn">Review Requests</button>
+                <button class="nav-btn" data-target="record" id="recordMenuBtn">Paid Records</button>
+                <button class="nav-btn" data-target="admin" id="adminMenuBtn">User Management</button>
+                <button class="nav-btn" data-target="reimbursement" id="reimbursementBtn">Reimbursement</button>
+                <button class="nav-btn" data-target="payment" id="paymentBtn">Payment Request</button>
+                <button class="btn-secondary" id="logoutBtn">Logout</button>
             </div>
-          </nav>
+        </nav>
 
         <main class="content">
+            <!-- Login Section -->
             <section id="login-form-section" class="main-content-section is-hidden">
                 <h2>Portal Login</h2>
                 <form id="loginForm" class="form-panel">
@@ -51,6 +48,7 @@
                 </form>
             </section>
 
+            <!-- Home Section -->
             <section id="home" class="main-content-section is-hidden">
                 <h2 id="home-title">Your Pending Requests</h2>
                 <div id="admin-pending-review" class="panel admin-panel" style="display:none;">
@@ -76,7 +74,7 @@
                                     <th>Invoice</th>
                                 </tr>
                             </thead>
-                            <tbody></tbody>
+                            <tbody><!-- JS --></tbody>
                         </table>
                     </div>
                 </div>
@@ -97,12 +95,13 @@
                                     <th>Invoice</th>
                                 </tr>
                             </thead>
-                            <tbody></tbody>
+                            <tbody><!-- JS --></tbody>
                         </table>
                     </div>
                 </div>
             </section>
 
+            <!-- Reimbursement Section -->
             <section id="reimbursement" class="main-content-section is-hidden">
                 <h2>Reimbursement Requests</h2>
                 <div class="form-container">
@@ -131,11 +130,12 @@
                                 <th>Invoice</th>
                             </tr>
                         </thead>
-                        <tbody></tbody>
+                        <tbody><!-- JS --></tbody>
                     </table>
                 </div>
             </section>
 
+            <!-- Payment Section -->
             <section id="payment" class="main-content-section is-hidden">
                 <h2>Payment Requests</h2>
                 <div class="form-container">
@@ -164,11 +164,12 @@
                                 <th>Invoice</th>
                             </tr>
                         </thead>
-                        <tbody></tbody>
+                        <tbody><!-- JS --></tbody>
                     </table>
                 </div>
             </section>
 
+            <!-- History Section -->
             <section id="history" class="main-content-section is-hidden">
                 <h2>Your Paid & Rejected History</h2>
                 <div class="tab-controls">
@@ -192,7 +193,7 @@
                                     <th>Invoice</th>
                                 </tr>
                             </thead>
-                            <tbody></tbody>
+                            <tbody><!-- JS --></tbody>
                         </table>
                     </div>
                 </div>
@@ -213,12 +214,13 @@
                                     <th>Invoice</th>
                                 </tr>
                             </thead>
-                            <tbody></tbody>
+                            <tbody><!-- JS --></tbody>
                         </table>
                     </div>
                 </div>
             </section>
 
+            <!-- Admin Review Section -->
             <section id="admin-review-main" class="main-content-section is-hidden">
                 <h2>Admin Review Requests</h2>
                 <div class="tab-controls">
@@ -243,7 +245,7 @@
                                     <th>Action</th>
                                 </tr>
                             </thead>
-                            <tbody></tbody>
+                            <tbody><!-- JS --></tbody>
                         </table>
                     </div>
                 </div>
@@ -265,12 +267,13 @@
                                     <th>Action</th>
                                 </tr>
                             </thead>
-                            <tbody></tbody>
+                            <tbody><!-- JS --></tbody>
                         </table>
                     </div>
                 </div>
             </section>
 
+            <!-- Paid Record Section -->
             <section id="record" class="main-content-section is-hidden">
                 <h2>Admin Paid Records (Archive)</h2>
                 <div class="tab-controls">
@@ -294,7 +297,7 @@
                                     <th>Invoice</th>
                                 </tr>
                             </thead>
-                            <tbody></tbody>
+                            <tbody><!-- JS --></tbody>
                         </table>
                     </div>
                 </div>
@@ -315,12 +318,13 @@
                                     <th>Invoice</th>
                                 </tr>
                             </thead>
-                            <tbody></tbody>
+                            <tbody><!-- JS --></tbody>
                         </table>
                     </div>
                 </div>
             </section>
 
+            <!-- User Management Section -->
             <section id="admin" class="main-content-section is-hidden">
                 <h2>User Management</h2>
                 <div class="form-container">
@@ -348,13 +352,14 @@
                                 <th>Action</th>
                             </tr>
                         </thead>
-                        <tbody></tbody>
+                        <tbody><!-- JS --></tbody>
                     </table>
                 </div>
             </section>
         </main>
     </div>
 
+    <!-- Modal for Attachment/Invoice Preview: Use <a> for downloads -->
     <div id="proofModal" class="modal is-hidden">
         <div class="modal-content">
             <div id="modalHeaderContent" class="modal-header-invoice">
@@ -365,7 +370,9 @@
                 <h2 id="applicationTitle" class="application-title"></h2>
             </div>
             <div class="modal-body">
-                <div id="modalDetails" style="margin-bottom:20px;"></div>
+                <div id="modalDetails" style="margin-bottom:20px;">
+                  <!-- JS inserts view/download <a href="..." target="_blank"></a> here -->
+                </div>
                 <iframe id="proofFrame" style="width:100%;height:500px;border:1px solid #ccc;display:none;"></iframe>
             </div>
             <div class="modal-footer">

@@ -31,7 +31,6 @@ frontend_dir = os.path.join(project_root, "frontend")
 static_path = os.path.join(frontend_dir, "static")
 template_path = os.path.join(frontend_dir, "templates")
 
-# 📂 Persistent storage path (Render Persistent Disk)
 upload_path = "/opt/render/project/uploads"
 os.makedirs(upload_path, exist_ok=True)
 
@@ -206,7 +205,6 @@ async def delete_user(username: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="User not found")
     return {"message": f"User '{username}' deleted"}
 
-# === លុប Route `/files/{filename}` ចាស់ដែលគ្មានសុវត្ថិភាពចោល ===
 # --- Submission Endpoints ---
 @app.post("/submit_reimbursement")
 async def submit_reimbursement(
@@ -251,7 +249,6 @@ async def submit_reimbursement(
         "created_at": datetime.now(timezone.utc)
     }
     await requests_collection.insert_one(doc)
-    # Corrected message for Reimbursement
     return {"message": f"Reimbursement request submitted with ID: {req_id}", "request_id": req_id}
 
 
@@ -300,7 +297,6 @@ async def submit_payment(
     await requests_collection.insert_one(doc)
     return {"message": f"Payment request submitted with ID: {req_id}", "request_id": req_id}
 
-
 # --- Dashboard & Review Endpoints ---
 @app.get("/my_requests")
 async def get_my_requests(user: dict = Depends(get_current_user)):
@@ -311,7 +307,6 @@ async def get_my_requests(user: dict = Depends(get_current_user)):
     recs = await requests_collection.find(query).to_list(500)
     recs = [serialize_doc(r) for r in recs]
     return JSONResponse(content=recs)
-
 
 @app.get("/admin/requests")
 async def admin_requests(
@@ -327,7 +322,6 @@ async def admin_requests(
     recs = await requests_collection.find(query).to_list(500)
     recs = [serialize_doc(r) for r in recs]
     return JSONResponse(content=recs)
-
 
 @app.get("/admin/pending_summary")
 async def get_pending_summary(user: dict = Depends(get_current_user)):
@@ -350,7 +344,6 @@ async def update_status(request_id_or_oid: str, payload: dict = Body(...), user:
     if doc:
         query = {"request_id": request_id_or_oid}
     else:
-        # Check for ObjectId
         try:
             oid = ObjectId(request_id_or_oid)
             doc = await requests_collection.find_one({"_id": oid})
@@ -365,12 +358,9 @@ async def update_status(request_id_or_oid: str, payload: dict = Body(...), user:
         raise HTTPException(status_code=400, detail="Invalid status")
 
     update_doc = {"status": status_val}
-    # Using datetime.now() without tzinfo for consistency with get_current_month_start()
-    current_time = datetime.now() 
-    
+    current_time = datetime.now()
     if status_val == "Paid":
         update_doc["paid_date"] = current_time
-        # Ensure approved_date is set if Paid is set directly
         if doc.get("approved_date") is None:
              update_doc["approved_date"] = current_time
     elif status_val == "Approved":
@@ -378,14 +368,12 @@ async def update_status(request_id_or_oid: str, payload: dict = Body(...), user:
 
     update_operation = {"$set": update_doc}
     if status_val in ["Rejected", "Pending"]:
-        # Unset date fields if status is reverted or rejected
         update_operation["$unset"] = {"paid_date": "", "approved_date": ""}
 
     result = await requests_collection.update_one(query, update_operation)
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Request ID not found")
     return {"message": f"Status updated to {status_val}"}
-
 
 # --- History & Records Endpoints ---
 @app.get("/history_requests")
@@ -397,7 +385,6 @@ async def get_history_requests(user: dict = Depends(get_current_user)):
     recs = [serialize_doc(r) for r in recs]
     return JSONResponse(content=recs)
 
-
 @app.get("/admin/paid_records")
 async def get_admin_record(user: dict = Depends(get_current_user)):
     if user["role"] != "admin":
@@ -407,27 +394,22 @@ async def get_admin_record(user: dict = Depends(get_current_user)):
     recs = [serialize_doc(r) for r in recs]
     return JSONResponse(content=recs)
 
-
 # --- Logout Endpoint ---
 @app.post("/logout")
 async def logout():
     return {"message": "Logged out successfully"}
 
-
-# === បានបន្ថែម Route ដែលមានសុវត្ថិភាពសម្រាប់ Serve Attachments ===
+# === Serve Attachments with Authorization ===
 @app.get("/attachments/{filename}")
 async def get_attachment(filename: str, user: dict = Depends(get_current_user)):
     doc = await requests_collection.find_one({"proof_filename": filename})
-    
     if not doc:
         raise HTTPException(status_code=404, detail="Attachment not found")
-        
-    # ការត្រួតពិនិត្យ Authorization: អនុញ្ញាតឱ្យ Admin ឬ Staff ម្ចាស់សំណើចូលមើលបាន
     if user["role"] != "admin" and doc["staffName"] != user["username"]:
         raise HTTPException(status_code=403, detail="Not authorized to view this attachment")
-        
     file_path = os.path.join(upload_path, filename)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File missing on server")
-        
-    return FileResponse(file_path)
+    # Serve as preview if possible, not forced download (for iOS)
+    content_type = "application/pdf" if file_path.lower().endswith(".pdf") else "image/jpeg"
+    return FileResponse(file_path, media_type=content_type)
