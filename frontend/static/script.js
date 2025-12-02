@@ -5,56 +5,28 @@ function delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 let token = null;
 let currentRole = null;
 
-// ---------- Welcome Animation ----------
-async function runWelcomeSequence() {
-    const companyName = document.getElementById("companyName");
-    const welcomeText = document.getElementById("welcomeText");
-    const logoBig = document.getElementById("logoBig");
-    const welcomeScreen = document.getElementById("welcome-screen");
-    logoBig.style.display = 'block';
-    logoBig.classList.add("logo-fly");
-    await delay(2000);
-    logoBig.classList.add("logo-hide");
-    await delay(1000);
-    companyName.textContent = "DYNAMIC FUSION CO., LTD";
-    companyName.classList.add("typing");
-    await delay(2000);
-    welcomeText.textContent = "Staff Reimbursement & Payment Portal";
-    welcomeText.classList.add("typing");
-    await delay(1000);
-    welcomeScreen.classList.add("fade-out");
-    setTimeout(() => {
-        welcomeScreen.classList.add("is-hidden");
-        showSection("login-form-section");
-    }, 1000);
-}
-
-// ---------- Helpers ----------
+// ---------- Helpers (Show/Hide Section) ----------
 function showSection(id) {
-    [
+    const allSections = [
         "login-form-section", "home", "reimbursement", "payment", "admin",
         "admin-review-main", "history", "record"
-    ].forEach(sec => {
+    ];
+    allSections.forEach(sec => {
         const el = document.getElementById(sec);
-        if (el) el.classList.toggle("is-hidden", sec !== id);
+        if (el) el.classList.add("is-hidden");
     });
+    const targetEl = document.getElementById(id);
+    if (targetEl) targetEl.classList.remove("is-hidden");
+    document.getElementById("mainMenu")?.classList.add("is-hidden");
 }
 function authHeaders() { return token ? { "Authorization": `Bearer ${token}` } : {}; }
 function handleUnauthorized(res) { if (res.status === 401) { logout(); return true; } return false; }
-
-// === Attachment Helper (Backend URL) ===
-function proofLink(r) { 
-    // ប្រើ proof_full_url ដែលបានមកពី Backend (main.py)
+function proofLink(r) {
     if (r.proof_full_url) return r.proof_full_url;
-    // Fallback ទៅ relative path
     return r.proof_filename ? `/attachments/${r.proof_filename}` : ""; 
 }
-// =======================================
-
-// === NEW: Securely fetch attachment and return a Blob URL (Uses relative path for Auth) ===
 async function getAuthenticatedAttachmentUrl(filename) {
     if (!filename || !token) return null;
-    // ប្រើ /attachments/{filename} endpoint ដែលមាន Auth check នៅ Backend
     const url = `/attachments/${filename}`; 
     try {
         const res = await fetch(url, { headers: authHeaders() });
@@ -63,19 +35,13 @@ async function getAuthenticatedAttachmentUrl(filename) {
             console.error(`Failed to fetch attachment: ${res.status}`);
             return null;
         }
-        
-        // 1. ទទួលបាន Blob និង Content Type
         const blob = await res.blob();
-        
-        // 2. បង្កើត Blob URL
         return URL.createObjectURL(blob);
     } catch (e) {
         console.error("Error fetching attachment:", e);
         return null;
     }
 }
-// ==========================================================
-
 function formatDate(dateString) {
     if (!dateString) return '';
     if (dateString.includes('T')) dateString = dateString.split('T')[0];
@@ -83,7 +49,6 @@ function formatDate(dateString) {
     if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
     return dateString;
 }
-
 function getApplicationTitle(type) { return type === 'reimbursement' ? 'Reimbursement Request Application' : 'Payment Request Application'; }
 function statusBadge(r) {
     const s = r.status;
@@ -98,6 +63,41 @@ function escapeHTML(str) {
         '&': '&amp;', '<': '&lt;', '>': '&gt;',
         '"': '&quot;', "'": '&#39;', '`': '&#96;'
     }[s]));
+}
+
+// ---------- Welcome Animation ----------
+async function runWelcomeSequence() {
+    const welcomeScreen = document.getElementById("welcome-screen");
+    const loginFormSection = document.getElementById("login-form-section");
+    const companyName = document.getElementById("companyName");
+    const welcomeText = document.getElementById("welcomeText");
+    const logoBig = document.getElementById("logoBig");
+    if (!welcomeScreen || !logoBig || !companyName || !welcomeText || !loginFormSection) {
+        if (welcomeScreen) welcomeScreen.classList.add("is-hidden");
+        showSection("login-form-section");
+        return;
+    }
+    try {
+        logoBig.style.display = 'block';
+        logoBig.classList.add("logo-fly");
+        await delay(2000);
+        logoBig.classList.add("logo-hide");
+        await delay(1000);
+        companyName.textContent = "DYNAMIC FUSION CO., LTD";
+        companyName.classList.add("typing");
+        await delay(2000);
+        welcomeText.textContent = "Staff Reimbursement & Payment Portal";
+        welcomeText.classList.add("typing");
+        await delay(1000);
+        welcomeScreen.classList.add("fade-out");
+        setTimeout(() => {
+            welcomeScreen.classList.add("is-hidden");
+            showSection("login-form-section");
+        }, 1000);
+    } catch (e) {
+        if (welcomeScreen) welcomeScreen.classList.add("is-hidden");
+        showSection("login-form-section");
+    }
 }
 
 // ---------- Navbar UI ----------
@@ -152,73 +152,73 @@ function setStaffHomeUI() {
     document.getElementById("staff-pending-payment").style.display = 'block';
     document.getElementById("admin-pending-review").style.display = 'none';
 }
-// Toggle dropdown menu
-document.querySelector(".menu-toggle").addEventListener("click", () => {
-    document.getElementById("mainMenu").classList.toggle("is-hidden");
-  });
-  
-  // Close menu when clicking outside
-  document.addEventListener("click", (e) => {
+document.querySelector(".menu-toggle")?.addEventListener("click", () => {
+    document.getElementById("mainMenu")?.classList.toggle("is-hidden");
+});
+document.addEventListener("click", (e) => {
     const menu = document.getElementById("mainMenu");
     const toggle = document.querySelector(".menu-toggle");
+    if (!menu || !toggle) return;
     if (!menu.contains(e.target) && e.target !== toggle) {
-      menu.classList.add("is-hidden");
+        menu.classList.add("is-hidden");
     }
-  });
-  
-  // Existing nav-btn logic
-  document.querySelectorAll(".nav-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const target = btn.getAttribute("data-target");
-      showSection(target);
-      document.getElementById("mainMenu").classList.add("is-hidden");
-    });
-  });
+});
+
 // ---------- Login / Logout ----------
 document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const msg = document.getElementById("loginMessage");
-    msg.textContent = "";
+    if (msg) msg.textContent = "";
     const username = document.getElementById("username")?.value.trim();
     const password = document.getElementById("password")?.value;
     const form = new FormData();
-    form.append("username", username); form.append("password", password);
+    form.append("username", username);
+    form.append("password", password);
     try {
         const res = await fetch("/token", { method: "POST", body: form });
-        if (!res.ok) { msg.textContent = "Login failed."; return; }
+        if (!res.ok) {
+            if (msg) msg.textContent = "Login failed. Incorrect username or password.";
+            return;
+        }
         const data = await res.json();
         token = data.access_token;
         let payload = null;
         try { payload = JSON.parse(atob(token.split(".")[1])); }
-        catch { msg.textContent = "Invalid token."; return; }
+        catch { if (msg) msg.textContent = "Invalid token."; return; }
         currentRole = payload.role;
         document.getElementById("login-form-section").classList.add("is-hidden");
+        const isAdmin = currentRole === "admin";
         document.getElementById("logoutBtn").style.display = "inline-block";
         document.getElementById("historyMenuBtn").style.display = "inline-block";
-        const isAdmin = currentRole === "admin";
         document.getElementById("adminMenuBtn").style.display = isAdmin ? "inline-block" : "none";
         document.getElementById("recordMenuBtn").style.display = isAdmin ? "inline-block" : "none";
         document.getElementById("adminReviewBtn").style.display = isAdmin ? "inline-block" : "none";
         document.getElementById("reimbursementBtn").style.display = isAdmin ? "none" : "inline-block";
         document.getElementById("paymentBtn").style.display = isAdmin ? "none" : "inline-block";
-        document.getElementById("adminDivider").style.display = isAdmin ? "block" : "none";
+        document.getElementById("mainMenu").classList.remove("is-hidden");
         showSection("home");
-        if (isAdmin) { setAdminHomeUI(); loadPendingRequestsSummary(); }
-        else { setStaffHomeUI(); loadStaffPendingRequests(); }
-    } catch { msg.textContent = "Login failed."; }
+        if (isAdmin) {
+            setAdminHomeUI();
+            loadPendingRequestsSummary();
+        } else {
+            setStaffHomeUI();
+            loadStaffPendingRequests();
+        }
+    } catch (error) {
+        if (msg) msg.textContent = "Login failed due to server error.";
+    }
 });
 document.getElementById("logoutBtn")?.addEventListener("click", logout);
 function logout() {
     token = null; currentRole = null;
     ["logoutBtn","adminMenuBtn","recordMenuBtn","adminReviewBtn","historyMenuBtn","reimbursementBtn","paymentBtn"].forEach(id => {
-        const el = document.getElementById(id); if (el) el.style.display = "none";
+        const el = document.getElementById(id);
+        if (el) el.style.display = "none";
     });
-    document.getElementById("adminDivider").style.display = "none";
     document.getElementById("admin-pending-review").style.display = "none";
-    showSection("login-form-section");
-    document.getElementById("reimbursementForm").style.display = "none";
-    document.getElementById("paymentForm").style.display = "none";
     document.querySelectorAll("tbody").forEach(el => el.innerHTML = "");
+    showSection("login-form-section");
+    document.getElementById("mainMenu").classList.add("is-hidden");
 }
 
 // ---------- Staff submit forms ----------
@@ -371,7 +371,6 @@ async function loadAdminRequests(type){
     }catch{tbody.innerHTML=`<tr><td colspan='10'>Failed to load admin ${type} requests</td></tr>`;}
 }
 
-// === renderAdminReviewRow - កែ View Proof ទៅ View ===
 function renderAdminReviewRow(r,type) {
     const row = document.createElement('tr');
     row.innerHTML = `
@@ -404,16 +403,18 @@ document.addEventListener("click", function(e){
     if(e.target.classList.contains('approve-btn')) updateStatus(e.target.getAttribute("data-id"),"Approved",e.target.getAttribute("data-type"));
     if(e.target.classList.contains('reject-btn')) updateStatus(e.target.getAttribute("data-id"),"Rejected",e.target.getAttribute("data-type"));
     if(e.target.classList.contains('paid-btn')) updateStatus(e.target.getAttribute("data-id"),"Paid",e.target.getAttribute("data-type"));
-    
-    // 🆕 Modal show (View Proof) - បង្ហាញតែ Attachment
+
+    // View Proof: open directly in new tab for all devices
     if(e.target.classList.contains('view-proof-btn')){
         const rec = JSON.parse(decodeURIComponent(e.target.getAttribute('data-record')));
-        showRequestDetailsModal(rec, true); // 👈 true = Show only Proof
+        if (rec.proof_filename) {
+            window.open(proofLink(rec), '_blank');
+        }
     }
-    // 🆕 Modal show (View Invoice) - បង្ហាញព័ត៌មានពេញលេញ
+    // View Invoice: modal
     if(e.target.classList.contains('view-invoice-btn')){
         const rec = JSON.parse(decodeURIComponent(e.target.getAttribute('data-record')));
-        showRequestDetailsModal(rec, false); // 👈 false = Show Full Invoice
+        showRequestDetailsModal(rec);
     }
 
     // User management delete btn
@@ -428,20 +429,22 @@ document.addEventListener("click", function(e){
 });
 
 // ---------- Update Status (Admin) ----------
-async function updateStatus(id, status, type){try{
-    const res=await fetch(`/admin/requests/${id}`,{
-        method:"PATCH",headers:{"Content-Type":"application/json",...authHeaders()},
-        body:JSON.stringify({status})
-    });
-    if(handleUnauthorized(res))return;
-    if(!res.ok){
-        const errorDetails=await res.json().catch(()=>({}));
-        const message=errorDetails.detail||`Server responded with status ${res.status}.`;
-        throw new Error(message);
-    }
-    await loadAdminRequests(type);loadPendingRequestsSummary();
-    if(currentRole==='staff'&&!document.getElementById("home").classList.contains("is-hidden")){loadStaffPendingRequests();}
-}catch(e){alert(`Failed to update status. Details: ${e.message||"Check console for server response."}`);}}
+async function updateStatus(id, status, type){
+    try{
+        const res=await fetch(`/admin/requests/${id}`,{
+            method:"PATCH",headers:{"Content-Type":"application/json",...authHeaders()},
+            body:JSON.stringify({status})
+        });
+        if(handleUnauthorized(res))return;
+        if(!res.ok){
+            const errorDetails=await res.json().catch(()=>({}));
+            const message=errorDetails.detail||`Server responded with status ${res.status}.`;
+            throw new Error(message);
+        }
+        await loadAdminRequests(type);loadPendingRequestsSummary();
+        if(currentRole==='staff'&&!document.getElementById("home").classList.contains("is-hidden")){loadStaffPendingRequests();}
+    }catch(e){alert(`Failed to update status. Details: ${e.message||"Check console for server response."}`);}
+}
 
 // ---------- History ----------
 function showHistoryTable(type,button){
@@ -472,7 +475,6 @@ async function loadHistoryRequestsTab(type){
     }
 }
 
-// === renderRow - កែ View Proof ទៅ View ===
 function renderRow(r,type){
     const row=document.createElement('tr');
     row.innerHTML=`
@@ -489,7 +491,7 @@ function renderRow(r,type){
     return row;
 }
 
-// ---------- Paid Record ----------
+// ---------- Paid Record (Admin) ----------
 function showRecordTable(type,button){
     document.getElementById('record-reimbursement').classList.add('is-hidden');
     document.getElementById('record-payment').classList.add('is-hidden');
@@ -505,6 +507,7 @@ async function loadRecordRequests(){
 async function loadRecordRequestsTab(type){
     const tbody=document.querySelector(type==="reimbursement"?"#recordReimbursementTable tbody":"#recordPaymentTable tbody");
     tbody.innerHTML='<tr><td colspan="9">Loading...</td></tr>';
+    if(currentRole !== 'admin') { tbody.innerHTML = '<tr><td colspan="9">Admin access only.</td></tr>'; return; }
     try{
         const res=await fetch("/admin/paid_records",{headers:authHeaders()});
         if(handleUnauthorized(res))return;
@@ -514,7 +517,6 @@ async function loadRecordRequestsTab(type){
         if(!filtered.length){tbody.innerHTML=`<tr><td colspan='9'>No paid ${type} records found.</td></tr>`;return;}
         filtered.forEach(r=>{
             const row=document.createElement('tr');
-            // === loadRecordRequestsTab - កែ View Proof ទៅ View ===
             row.innerHTML=`
                 <td>${escapeHTML(r.type)}</td>
                 <td>${escapeHTML(r.request_id||'N/A')}</td>
@@ -533,91 +535,52 @@ async function loadRecordRequestsTab(type){
     }
 }
 
-// ---------- Modal logic (Updated to include Open Attachment link for View Proof) ----------
-async function showRequestDetailsModal(r, showOnlyProof = false){ 
-    const modal=document.getElementById('proofModal');
-    // ប្រើ ID ដើមរបស់អ្នក៖ modalHeaderContent
-    const modalHeaderContent = document.getElementById('modalHeaderContent'); 
-    const modalDetails=document.getElementById('modalDetails');
-    const proofFrame=document.getElementById('proofFrame');
-    const applicationTitle=document.getElementById('applicationTitle');
-    
-    // Clear details and initially set display modes
-    modalDetails.innerHTML = ''; 
-    modalDetails.style.display = 'none'; 
+// ---------- Modal logic ----------
+const proofModal = document.getElementById("proofModal");
+const modalHeaderContent = document.getElementById('modalHeaderContent'); 
+const modalDetails=document.getElementById('modalDetails');
+const proofFrame=document.getElementById('proofFrame');
+const applicationTitle=document.getElementById('applicationTitle');
+let currentBlobUrl = null; 
+async function showRequestDetailsModal(r){ 
+    if(!proofModal || !modalHeaderContent || !modalDetails || !proofFrame || !applicationTitle) return; 
     const proofFilename = r.proof_filename;
-
-    // Logic គ្រប់គ្រង Header និង Details
-    if (!showOnlyProof) { 
-        // ពេល View Invoice: បង្ហាញ Header និង Details ទាំងអស់
-        modalHeaderContent.style.display = 'flex'; 
-        modalDetails.style.display = 'block'; 
-        applicationTitle.textContent=`${getApplicationTitle(r.type)} — ${r.request_id||''}`; 
-        
-        modalDetails.innerHTML = `
-            <div class="modal-info-grid">
-                <p><strong>Request Type:</strong> ${escapeHTML(r.type)}</p>
-                <p><strong>Staff Name:</strong> ${escapeHTML(r.staffName)}</p>
-                <p><strong>Request Date:</strong> ${formatDate(r.date)}</p>
-                <p><strong>Description/Purpose:</strong> ${escapeHTML(r.description||r.purpose)}</p>
-                <p><strong>Amount Requested:</strong> $${escapeHTML(r.amount)}</p>
-                <p><strong>Status:</strong> ${statusBadge(r)}</p>
-                <p><strong>Approved Date:</strong> ${formatDate(r.approved_date||'')}</p>
-                <p><strong>Paid Date:</strong> ${formatDate(r.paid_date||'')}</p>
-            </div>
-        `;
-        // បន្ថែម Open in New Tab Link សម្រាប់ Full Invoice View (បើមាន Attachment)
-        if (proofFilename) {
-            modalDetails.innerHTML += `<p class="modal-link-container"><a href="${proofLink(r)}" target="_blank" rel="noopener noreferrer">Open Attachment in New Tab</a></p>`;
-        }
+    if (currentBlobUrl && currentBlobUrl.startsWith('blob:')) { URL.revokeObjectURL(currentBlobUrl);}
+    currentBlobUrl = null;
+    modalDetails.innerHTML = ''; 
+    modalDetails.style.display = 'block'; 
+    proofFrame.style.display='none';
+    modalHeaderContent.style.display = 'flex'; 
+    applicationTitle.textContent=`${getApplicationTitle(r.type)} — ${r.request_id||''}`; 
+    modalDetails.innerHTML = `
+        <div class="modal-info-grid">
+            <p><strong>Request Type:</strong> ${escapeHTML(r.type)}</p>
+            <p><strong>Staff Name:</strong> ${escapeHTML(r.staffName)}</p>
+            <p><strong>Request Date:</strong> ${formatDate(r.date)}</p>
+            <p><strong>Description/Purpose:</strong> ${escapeHTML(r.description||r.purpose)}</p>
+            <p><strong>Amount Requested:</strong> $${escapeHTML(r.amount)}</p>
+            <p><strong>Status:</strong> ${statusBadge(r)}</p>
+            <p><strong>Approved Date:</strong> ${formatDate(r.approved_date||'')}</p>
+            <p><strong>Paid Date:</strong> ${formatDate(r.paid_date||'')}</p>
+        </div>
+    `;
+    if (proofFilename) {
+        const url = proofLink(r); 
+        modalDetails.innerHTML += `<p class="modal-link-container" style="padding-top:10px;"><a href="${url}" target="_blank" rel="noopener noreferrer" class="btn-solid" style="display:block;text-align:center;">Open Attachment in New Tab (Recommended for Mobile)</a></p>`;
     } else {
-        // ពេល View Proof តែប៉ុណ្ណោះ: លាក់ Header (Logo/Company Name)
-        modalHeaderContent.style.display = 'none'; 
-        applicationTitle.textContent=`ATTACHMENT PROOF — ${r.request_id||''}`; 
-
-        // 🆕 បន្ថែម Open in New Tab Link សម្រាប់ View Proof (បើមាន Attachment)
-        modalDetails.style.display = 'block'; // ត្រូវតែបង្ហាញ details ដើម្បីដាក់ link
-        if (proofFilename) {
-             modalDetails.innerHTML += `<p class="modal-link-container" style="text-align:center;"><a href="${proofLink(r)}" target="_blank" rel="noopener noreferrer">Open Attachment in New Tab</a></p>`;
-        }
+        modalDetails.innerHTML += `<p class="modal-link-container" style="color:red;padding-top:10px;text-align:center;">No attachment/proof file found.</p>`;
     }
-
-    
-    if(proofFilename){
-        // រង់ចាំទាញយកឯកសារដែលមាន Authentication
-        const authenticatedUrl = await getAuthenticatedAttachmentUrl(proofFilename); 
-
-        if (authenticatedUrl) {
-            proofFrame.src = authenticatedUrl;
-            proofFrame.style.display='block';
-        } else {
-            proofFrame.src="";
-            proofFrame.style.display='none';
-            // បង្ហាញ error នៅក្នុង mode ទាំងពីរពេល load មិនបាន
-            modalDetails.style.display = 'block'; 
-            modalDetails.innerHTML+=`<p style="color:red;padding-top:20px;">Failed to load attachment (Check Authentication or Console for error).</p>`;
-        }
-    }
-    else{
-        proofFrame.src="";
-        proofFrame.style.display='none';
-        // បង្ហាញ No attachment នៅក្នុង mode ទាំងពីរ
-        modalDetails.style.display = 'block';
-        modalDetails.innerHTML+=`<p style="color:red;padding-top:20px;">No attachment/proof file found.</p>`;
-    }
-    modal.classList.remove('is-hidden');
+    proofFrame.src = "";
+    proofModal.classList.remove('is-hidden');
 }
-
 function hideRequestDetailsModal(){
-    const modal=document.getElementById('proofModal');
-    const proofFrame=document.getElementById('proofFrame');
-    modal.classList.add('is-hidden');
-    
-    // លុប Blob URL ចេញពីអង្គចងចាំនៅពេលបិទ Modal
-    if (proofFrame.src && proofFrame.src.startsWith('blob:')) {
-        URL.revokeObjectURL(proofFrame.src);
-        proofFrame.src = "";
+    if(!proofModal || !proofFrame) return;
+    proofModal.classList.add('is-hidden');
+    if (currentBlobUrl && currentBlobUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(currentBlobUrl);
     }
+    proofFrame.src = "";
+    currentBlobUrl = null;
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape')hideRequestDetailsModal();});
 
@@ -625,6 +588,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')hideRequestDetailsMo
 async function loadAdminUsers(){
     const tbody=document.querySelector("#usersTable tbody");
     tbody.innerHTML="<tr><td colspan='4'>Loading users...</td></tr>";
+    if (currentRole !== 'admin') { tbody.innerHTML = '<tr><td colspan="4">Access Denied.</td></tr>'; return; }
     try{
         const res=await fetch("/admin/users",{headers:authHeaders()});
         if(handleUnauthorized(res))return;
@@ -632,11 +596,12 @@ async function loadAdminUsers(){
         tbody.innerHTML=data.length?"":"<tr><td colspan='4'>No users found</td></tr>";
         data.forEach(u=>{
             const row=document.createElement('tr');
+            const canDelete = u.username !== document.getElementById("username")?.value; 
             row.innerHTML=`
                 <td>${escapeHTML(u.username)}</td>
                 <td>${escapeHTML(u.role)}</td>
                 <td>${formatDate(u.created_at)}</td>
-                <td><button class="delete-btn" data-username="${escapeHTML(u.username)}">Delete</button></td>
+                <td>${canDelete ? `<button class="delete-btn" data-username="${escapeHTML(u.username)}">Delete</button>` : 'N/A'}</td>
             `;
             tbody.appendChild(row);
         });
@@ -650,26 +615,29 @@ async function deleteUser(username) {
         const res=await fetch(`/admin/users/${username}`,{method:"DELETE",headers:authHeaders()});
         if(handleUnauthorized(res))return;
         if(!res.ok) throw new Error("Delete failed");
+        alert(`User ${username} deleted successfully.`);
         await loadAdminUsers();
-    }catch{alert("Failed to delete user.");}
+    }catch(e){alert(`Failed to delete user. ${e.message||"Check console."}`);}
 }
 document.getElementById("addUserForm")?.addEventListener("submit", async (e)=>{
     e.preventDefault();
     const fd=new FormData(e.target);
+    const msgEl = document.getElementById("createUserMessage");
+    if (msgEl) msgEl.textContent = "Processing...";
     try{
         const res=await fetch("/create_user",{method:"POST",headers:authHeaders(),body:fd});
         if(handleUnauthorized(res))return;
         if(!res.ok){
             const msg=await res.json().catch(()=>({}));
-            document.getElementById("createUserMessage").textContent = msg.detail || "Failed to create user.";
+            if (msgEl) msgEl.textContent = msg.detail || "Failed to create user.";
             return;
         }
         await res.json();
         e.target.reset();
-        document.getElementById("createUserMessage").textContent="User created successfully!";
+        msgEl && (msgEl.textContent="User created successfully!");
         await loadAdminUsers();
     }catch{
-        document.getElementById("createUserMessage").textContent="Error creating user.";
+        msgEl && (msgEl.textContent="Error creating user.");
     }
 });
 
