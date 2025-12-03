@@ -21,27 +21,18 @@ function showSection(id) {
 }
 function authHeaders() { return token ? { "Authorization": `Bearer ${token}` } : {}; }
 function handleUnauthorized(res) { if (res.status === 401) { logout(); return true; } return false; }
+
+// --- FIXED: proofLink now includes the token as a query parameter ---
 function proofLink(r) {
     if (r.proof_full_url) return r.proof_full_url;
+    if (r.proof_filename && token) {
+        // Appends the token as a query parameter so the link works directly in the browser
+        return `/attachments/${r.proof_filename}?token=${token}`; 
+    }
     return r.proof_filename ? `/attachments/${r.proof_filename}` : ""; 
 }
-async function getAuthenticatedAttachmentUrl(filename) {
-    if (!filename || !token) return null;
-    const url = `/attachments/${filename}`; 
-    try {
-        const res = await fetch(url, { headers: authHeaders() });
-        if (handleUnauthorized(res)) return null;
-        if (!res.ok) {
-            console.error(`Failed to fetch attachment: ${res.status}`);
-            return null;
-        }
-        const blob = await res.blob();
-        return URL.createObjectURL(blob);
-    } catch (e) {
-        console.error("Error fetching attachment:", e);
-        return null;
-    }
-}
+// --- REMOVED: getAuthenticatedAttachmentUrl function is no longer needed ---
+
 function formatDate(dateString) {
     if (!dateString) return '';
     if (dateString.includes('T')) dateString = dateString.split('T')[0];
@@ -373,7 +364,7 @@ async function loadAdminRequests(type){
 
 function renderAdminReviewRow(r,type) {
     const row = document.createElement('tr');
-    // FIX HERE: use <a> for attachment!
+    // FIX HERE: use <a> for attachment! The proofLink function now handles token inclusion.
     row.innerHTML = `
         <td>${escapeHTML(r.type)}</td>
         <td>${escapeHTML(r.request_id||'N/A')}</td>
@@ -471,7 +462,7 @@ async function loadHistoryRequestsTab(type){
 
 function renderRow(r,type){
     const row=document.createElement('tr');
-    // FIX HERE for attachment: <a> direct link
+    // FIX HERE for attachment: The proofLink function now handles token inclusion.
     row.innerHTML=`
         <td>${escapeHTML(r.type)}</td>
         <td>${escapeHTML(r.request_id||'N/A')}</td>
@@ -512,7 +503,7 @@ async function loadRecordRequestsTab(type){
         if(!filtered.length){tbody.innerHTML=`<tr><td colspan='9'>No paid ${type} records found.</td></tr>`;return;}
         filtered.forEach(r=>{
             const row=document.createElement('tr');
-            // FIX for paid record attachment link
+            // FIX for paid record attachment link: The proofLink function now handles token inclusion.
             row.innerHTML=`
                 <td>${escapeHTML(r.type)}</td>
                 <td>${escapeHTML(r.request_id||'N/A')}</td>
@@ -541,8 +532,9 @@ let currentBlobUrl = null;
 async function showRequestDetailsModal(r){ 
     if(!proofModal || !modalHeaderContent || !modalDetails || !proofFrame || !applicationTitle) return; 
     const proofFilename = r.proof_filename;
-    if (currentBlobUrl && currentBlobUrl.startsWith('blob:')) { URL.revokeObjectURL(currentBlobUrl);}
-    currentBlobUrl = null;
+    // We are no longer using currentBlobUrl to fetch/revoke blobs
+    // if (currentBlobUrl && currentBlobUrl.startsWith('blob:')) { URL.revokeObjectURL(currentBlobUrl);}
+    // currentBlobUrl = null;
     modalDetails.innerHTML = ''; 
     modalDetails.style.display = 'block'; 
     proofFrame.style.display='none';
@@ -561,6 +553,7 @@ async function showRequestDetailsModal(r){
         </div>
     `;
     if (proofFilename) {
+        // The URL now contains the necessary token via proofLink
         const url = proofLink(r); 
         modalDetails.innerHTML += `<p class="modal-link-container" style="padding-top:10px;"><a href="${url}" target="_blank" rel="noopener noreferrer" class="btn-solid" style="display:block;text-align:center;">Open Attachment in New Tab (Recommended for Mobile)</a></p>`;
     } else {
@@ -572,9 +565,10 @@ async function showRequestDetailsModal(r){
 function hideRequestDetailsModal(){
     if(!proofModal || !proofFrame) return;
     proofModal.classList.add('is-hidden');
-    if (currentBlobUrl && currentBlobUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(currentBlobUrl);
-    }
+    // Removed unused Blob cleanup code
+    // if (currentBlobUrl && currentBlobUrl.startsWith('blob:')) {
+    //     URL.revokeObjectURL(currentBlobUrl);
+    // }
     proofFrame.src = "";
     currentBlobUrl = null;
 }
@@ -592,7 +586,11 @@ async function loadAdminUsers(){
         tbody.innerHTML=data.length?"":"<tr><td colspan='4'>No users found</td></tr>";
         data.forEach(u=>{
             const row=document.createElement('tr');
-            const canDelete = u.username !== document.getElementById("username")?.value; 
+            // FIX: Get the logged-in username from the JWT payload for comparison
+            let loggedInUsername = '';
+            try { loggedInUsername = JSON.parse(atob(token.split(".")[1])).sub; } catch {}
+
+            const canDelete = u.username !== loggedInUsername; 
             row.innerHTML=`
                 <td>${escapeHTML(u.username)}</td>
                 <td>${escapeHTML(u.role)}</td>
