@@ -40,6 +40,7 @@ os.makedirs(upload_path, exist_ok=True)
 app.mount("/static", StaticFiles(directory=static_path), name="static")
 templates = Jinja2Templates(directory=template_path)
 
+# --- CORSMiddleware configuration (This section has been fixed for indentation) ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -71,7 +72,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode.update({"exp": expire.timestamp()})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+# NEW: A function to decode and validate the token payload
+def decode_token_payload(token: str) -> Dict[str, Any]:
     credentials_exception = HTTPException(
         status_code=401,
         detail="Could not validate credentials",
@@ -83,10 +85,24 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         role: str = payload.get("role")
         if username is None or role is None:
             raise credentials_exception
+        return {"username": username, "role": role}
     except JWTError:
         raise credentials_exception
-        
-    # Using payload role for quicker check, but verify against DB for user existence
+
+# MODIFIED: get_current_user now accepts token directly or via Depends
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    # Decode payload first
+    payload = decode_token_payload(token)
+    username = payload["username"]
+    role = payload["role"]
+    
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    # Verify against DB for user existence
     user = await get_user(username)
     if user is None:
         raise credentials_exception
@@ -135,19 +151,16 @@ def clean_filename(original_filename: str, username: str) -> str:
 @app.on_event("startup")
 async def startup():
     try:
-        # Check connection before proceeding with collections/users
         await client.admin.command("ping")
         await init_indexes()
         print("✅ MongoDB connected and indexes ready")
     except Exception as e:
-        # Raise a clear error if the database connection fails
         print(f"❌ CRITICAL ERROR: MongoDB connection failed during startup. Check MONGO_URI and network access. Details: {e}")
-        # Re-raising the error ensures FastAPI/Uvicorn properly logs the failure and exits.
         raise e 
 
     # Default Admin Creation
     admin_pass = os.getenv("ADMIN_PASS", "nou123")
-    admin = await users_collection.find_one({"username": "nou"}) # This is where the original traceback failed
+    admin = await users_collection.find_one({"username": "nou"})
     if not admin:
         hashed = pwd_context.hash(admin_pass)
         await users_collection.insert_one({
@@ -160,7 +173,6 @@ async def startup():
 
 @app.on_event("shutdown")
 async def shutdown():
-    # Ensure client is closed
     if client:
         client.close()
     print("🔒 MongoDB connection closed")
@@ -201,7 +213,7 @@ async def create_user(
     if user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admins only")
     if len(password) < 6:
-         raise HTTPException(status_code=400, detail="Password must be at least 6 characters long")
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters long")
 
     existing = await users_collection.find_one({"username": username})
     if existing:
@@ -253,9 +265,15 @@ async def submit_reimbursement(
         raise HTTPException(status_code=403, detail="Staff only")
         
     try:
+        # Basic date validation
+        datetime.strptime(date, '%Y-%m-%d')
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Expected YYYY-MM-DD.")
+        
+    try:
         amt_val = float(amount)
         if amt_val <= 0:
-             raise ValueError("Amount must be positive.")
+            raise ValueError("Amount must be positive.")
     except ValueError:
         raise HTTPException(status_code=400, detail="Amount must be a positive number")
 
@@ -271,7 +289,8 @@ async def submit_reimbursement(
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(proof.file, buffer)
     except Exception as e:
-        # Important: File upload is the most common point of failure
+        # Ensure file is closed even if copy fails
+        proof.file.close() 
         raise HTTPException(status_code=500, detail=f"File upload failed on server: {str(e)}")
 
     next_seq = await get_next_sequence_value("request_id")
@@ -288,8 +307,14 @@ async def submit_reimbursement(
         "proof_filename": filename,
         "created_at": datetime.now(timezone.utc)
     }
-    await requests_collection.insert_one(doc)
-    return {"message": f"Reimbursement request submitted with ID: {req_id}", "request_id": req_id}
+    try:
+        await requests_collection.insert_one(doc)
+        return {"message": f"Reimbursement request submitted with ID: {req_id}", "request_id": req_id}
+    except Exception as e:
+        # If DB insert fails, try to clean up the uploaded file
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(status_code=500, detail=f"Database submission failed: {str(e)}")
 
 
 @app.post("/submit_payment")
@@ -304,9 +329,15 @@ async def submit_payment(
         raise HTTPException(status_code=403, detail="Staff only")
         
     try:
+        # Basic date validation
+        datetime.strptime(date, '%Y-%m-%d')
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Expected YYYY-MM-DD.")
+    
+    try:
         amt_val = float(amount)
         if amt_val <= 0:
-             raise ValueError("Amount must be positive.")
+            raise ValueError("Amount must be positive.")
     except ValueError:
         raise HTTPException(status_code=400, detail="Amount must be a positive number")
 
@@ -321,6 +352,8 @@ async def submit_payment(
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(proof.file, buffer)
     except Exception as e:
+        # Ensure file is closed even if copy fails
+        proof.file.close()
         raise HTTPException(status_code=500, detail=f"File upload failed on server: {str(e)}")
 
     next_seq = await get_next_sequence_value("request_id")
@@ -337,8 +370,15 @@ async def submit_payment(
         "proof_filename": filename,
         "created_at": datetime.now(timezone.utc)
     }
-    await requests_collection.insert_one(doc)
-    return {"message": f"Payment request submitted with ID: {req_id}", "request_id": req_id}
+    try:
+        await requests_collection.insert_one(doc)
+        return {"message": f"Payment request submitted with ID: {req_id}", "request_id": req_id}
+    except Exception as e:
+        # If DB insert fails, try to clean up the uploaded file
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(status_code=500, detail=f"Database submission failed: {str(e)}")
+
 
 # --- Dashboard & Review Endpoints ---
 @app.get("/my_requests")
@@ -348,6 +388,7 @@ async def get_my_requests(user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Staff only")
         
     month_start = get_current_month_start()
+    # Filter for the current user and for requests created this month or later
     query = {"staffName": user["username"], "created_at": {"$gte": month_start}}
     recs = await requests_collection.find(query).sort("created_at", -1).to_list(500)
     recs = [serialize_doc(r) for r in recs]
@@ -363,7 +404,8 @@ async def admin_requests(
         raise HTTPException(status_code=403, detail="Admins only")
         
     month_start = get_current_month_start()
-    query = {"created_at": {"$gte": month_start}, "status": {"$ne": "Paid"}} # Focus on Pending/Approved/Rejected
+    # Focus on Pending/Approved/Rejected requests created this month or later
+    query = {"created_at": {"$gte": month_start}, "status": {"$ne": "Paid"}}
     
     if type in ["reimbursement", "payment"]:
         query["type"] = type
@@ -391,18 +433,22 @@ async def update_status(request_id_or_oid: str, payload: dict = Body(...), user:
         raise HTTPException(status_code=403, detail="Admins only")
         
     # Build query to find the document by request_id (PRxxxx) or internal _id (ObjectId)
-    query = {"request_id": request_id_or_oid}
-    doc = await requests_collection.find_one(query)
+    query = {}
     
-    if not doc:
+    # Check if it matches the unique request ID format (e.g., PR0001)
+    if re.match(r"PR\d{4}$", request_id_or_oid):
+        query = {"request_id": request_id_or_oid}
+    else:
+        # Otherwise, assume it's an ObjectId
         try:
             oid = ObjectId(request_id_or_oid)
             query = {"_id": oid}
-            doc = await requests_collection.find_one(query)
-            if not doc:
-                 raise HTTPException(status_code=404, detail="Request ID not found")
         except Exception:
-            raise HTTPException(status_code=404, detail="Request ID not found")
+            raise HTTPException(status_code=400, detail="Invalid request identifier format")
+    
+    doc = await requests_collection.find_one(query)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Request ID not found")
 
 
     status_val = payload.get("status")
@@ -412,20 +458,30 @@ async def update_status(request_id_or_oid: str, payload: dict = Body(...), user:
     update_doc = {"status": status_val}
     current_time = datetime.now(timezone.utc) # Use timezone-aware time
     
+    # --- Status Transition Logic ---
     if status_val == "Paid":
         update_doc["paid_date"] = current_time
-        # Ensure it has an approved date if jumping straight to Paid
-        if doc.get("approved_date") is None:
+        # If jumping straight from Pending/Rejected to Paid, set an approved date
+        if doc.get("status") in ["Pending", "Rejected"] or doc.get("approved_date") is None:
             update_doc["approved_date"] = current_time
     elif status_val == "Approved":
         update_doc["approved_date"] = current_time
+        # If changing back to Approved, clear paid date
+        update_doc["paid_date"] = None
     
-    update_operation = {"$set": update_doc}
+    update_operation = {"$set": {k:v for k,v in update_doc.items() if v is not None}}
     
     # Clear date fields if setting back to Pending or Rejected
+    unset_fields = {}
     if status_val in ["Rejected", "Pending"]:
-        # $unset removes the field entirely from the document
-        update_operation["$unset"] = {"paid_date": "", "approved_date": ""}
+        unset_fields.update({"paid_date": "", "approved_date": ""})
+    else:
+        # Handle explicit unsetting of Paid Date if status is Approved
+        if update_doc.get("paid_date") is None and status_val == "Approved":
+            unset_fields["paid_date"] = ""
+    
+    if unset_fields:
+        update_operation["$unset"] = unset_fields
 
     result = await requests_collection.update_one(query, update_operation)
     
@@ -465,39 +521,46 @@ async def logout():
     # Frontend handles token removal. This is just for completeness.
     return {"message": "Logged out successfully"}
 
-# === Serve Attachments with Authorization ===
-# NOTE: The token from the URL query in the JavaScript is handled by the 
-# Depends(get_current_user) which is configured to look in the Authorization header.
-# You might need custom middleware if you require the token from a URL query parameter 
-# (e.g., ?token=...) to work reliably for FileResponse, but for now we trust the 
-# standard Bearer token flow via the browser's fetch/XHR requests.
+# === Serve Attachments with Authorization (FIXED for Header and Query Param) ===
 @app.get("/attachments/{filename}")
 async def get_attachment(filename: str, request: Request):
-    # Custom authorization check for serving files, supporting both:
-    # 1. Bearer Token in Authorization header (standard FastAPI)
-    # 2. Token in query parameter (?token=...) (needed for <img> or <a> target="_blank")
-    token = request.headers.get("Authorization", "").replace("Bearer ", "") or request.query_params.get("token")
     
+    # 1. Get Token from Header or Query Parameter
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.replace("Bearer ", "").strip()
+    
+    # If not found in Header, check Query Parameter (Needed for <img> or <a> target="_blank")
     if not token:
-        raise HTTPException(status_code=401, detail="Authentication required")
+        token = request.query_params.get("token")
         
-    # Use the token to get the current user
+    if not token:
+        # 401: No token was provided in either location
+        raise HTTPException(status_code=401, detail="Authentication required (Token missing)")
+        
+    # 2. Authenticate User using the found token
     try:
+        # Call get_current_user with token directly (as modified previously)
         user = await get_current_user(token=token)
-    except HTTPException:
-        raise HTTPException(status_code=403, detail="Invalid or expired token")
+    except HTTPException as e:
+        # Catch exceptions thrown by get_current_user (401/403)
+        if e.status_code in [401, 403]:
+            # Use 403 Forbidden if token validation failed after being provided
+            raise HTTPException(status_code=403, detail="Invalid or expired token, or role mismatch.")
+        raise 
 
+    # 3. Find the Document in DB
     doc = await requests_collection.find_one({"proof_filename": filename})
     if not doc:
-        raise HTTPException(status_code=404, detail="Attachment not found")
+        raise HTTPException(status_code=404, detail="Attachment record not found in database")
         
-    # Authorization logic: Admin can view all, Staff can view their own
+    # 4. Authorization Logic: Admin can view all, Staff can view their own
     if user["role"] != "admin" and doc["staffName"] != user["username"]:
-        raise HTTPException(status_code=403, detail="Not authorized to view this attachment")
+        raise HTTPException(status_code=403, detail="Not authorized to view this attachment (Not owner or Admin)")
         
+    # 5. Serve File
     file_path = os.path.join(upload_path, filename)
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File missing on server")
+        raise HTTPException(status_code=404, detail="File missing on server storage")
         
     # Determine MIME type for the browser
     content_type = "application/pdf"
